@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'brand.dart';
+import 'treasury_widgets.dart';
 import 'package:uuid/uuid.dart';
 import 'treasury.dart';
 
@@ -15,7 +16,7 @@ class ActivityEditor extends StatefulWidget {
 class _ActivityEditorState extends State<ActivityEditor> {
   final activity=TextEditingController(),original=TextEditingController(),historical=TextEditingController(),amount=TextEditingController(),note=TextEditingController(),reason=TextEditingController();
   late final String operationId;
-  String? companionId,error;DateTime? activityDate;DateTime paymentDate=today();bool busy=false;
+  String? companionId,error;DateTime? activityDate;DateTime paymentDate=today();bool busy=false,dirty=false;
   @override void initState(){
     super.initState();operationId=const Uuid().v4();final a=widget.account;
     companionId=a?['companion_id'];activity.text=a?['activity']??'';
@@ -23,16 +24,23 @@ class _ActivityEditorState extends State<ActivityEditor> {
     historical.text=a==null?'0':((a['historical_paid_cents'] as num)/100).toStringAsFixed(2);
     note.text=widget.payment?'':a?['note']??'';
     if(a?['activity_date']!=null)activityDate=DateTime.parse(a!['activity_date']);
+    for(final controller in [activity,original,historical,amount,note,reason]){controller.addListener(()=>dirty=true);}
   }
   @override void dispose(){for(final c in [activity,original,historical,amount,note,reason]){c.dispose();}super.dispose();}
-  Future<void> chooseCompanion()async{
-    var query='';
-    final id=await showModalBottomSheet<String>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>StatefulBuilder(builder:(c,set)=>Padding(padding:EdgeInsets.fromLTRB(20,20,20,MediaQuery.viewInsetsOf(c).bottom+20),child:SizedBox(height:MediaQuery.sizeOf(c).height*.6,child:Column(children:[TextField(decoration:const InputDecoration(labelText:'Buscar compañero',prefixIcon:Icon(Icons.search)),onChanged:(v)=>set(()=>query=v.toLowerCase())),Expanded(child:ListView(children:widget.companions.where((p)=>p['name'].toString().toLowerCase().contains(query)).map((p)=>ListTile(title:Text(p['name']),onTap:()=>Navigator.pop(c,p['id']))).toList()))])))));
-    if(id!=null&&mounted)setState(()=>companionId=id);
+  Future<void> chooseCompanion() async {
+    final id=await selectOption(context,title:'Elegir compañero',selected:companionId,searchable:true,options:widget.companions.map((companion)=><String,dynamic>{'value':companion['id'],'name':companion['name']}).toList());
+    if(id!=null&&mounted)setState((){companionId=id;dirty=true;});
   }
-  Future<void> chooseDate()async{
-    final value=await showDatePicker(context:context,initialDate:widget.payment?paymentDate:activityDate??today(),firstDate:DateTime(2013),lastDate:today());
-    if(value!=null&&mounted)setState(()=>widget.payment?paymentDate=value:activityDate=value);
+  Future<bool> leave() async {
+    if(busy)return false;if(!dirty)return true;
+    return await showDialog<bool>(context:context,builder:(context)=>AlertDialog(title:const Text('¿Salir sin guardar?'),content:const Text('Los cambios de esta actividad no se han guardado.'),actions:[TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text('Seguir editando')),FilledButton(onPressed:()=>Navigator.pop(context,true),child:const Text('Salir'))]))??false;
+  }
+  Future<void> chooseDate() async {
+    final current=widget.payment?paymentDate:activityDate??today();
+    final first=DateTime(2013),last=today();
+    final initial=current.isBefore(first)?first:current.isAfter(last)?last:current;
+    final value=await showDatePicker(context:context,initialDate:initial,firstDate:first,lastDate:last);
+    if(value!=null&&mounted)setState((){if(widget.payment){paymentDate=value;}else{activityDate=value;}dirty=true;});
   }
   Future<void> save()async{
     if(busy)return;
@@ -49,19 +57,32 @@ class _ActivityEditorState extends State<ActivityEditor> {
       }
       setState((){busy=true;error=null;});await widget.repo.profile();
       await widget.repo.client.rpc('treasury_activity_command',params:{'p_action':widget.payment?'pay':'save','p_data':data});
-      if(mounted)Navigator.pop(context,true);
+      dirty=false;if(mounted)Navigator.pop(context,true);
     }catch(e){if(mounted)setState(()=>error=message(e));}finally{if(mounted)setState(()=>busy=false);}
   }
-  @override Widget build(BuildContext context){
-    final selected=widget.companions.where((p)=>p['id']==companionId).firstOrNull;
-    return PopScope(canPop:!busy,child:Scaffold(appBar:AppBar(title:Text(widget.payment?'Recibir pago de actividad':widget.account==null?'Nuevo pendiente':'Corregir pendiente')),body:ResponsiveBody(child:ListView(padding:const EdgeInsets.all(20),children:[
-      if(widget.payment)...[Text('${widget.account!['name']} · ${widget.account!['activity']}',style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold)),Text('Por cobrar: ${money(widget.account!['pending_cents'])}'),const SizedBox(height:16),const Text('El pago se sumará al fondo general. No lo ingreses nuevamente en Movimientos.'),const SizedBox(height:16),TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Dinero recibido · USD'))]
-      else ...[OutlinedButton.icon(onPressed:busy?null:chooseCompanion,icon:const Icon(Icons.person_search),label:Text(selected?['name']??widget.account?['name']??'Elegir compañero')),const SizedBox(height:16),TextField(controller:activity,decoration:const InputDecoration(labelText:'Actividad: bingo, rifa…')),const SizedBox(height:16),TextField(controller:original,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Deuda original · USD')),const SizedBox(height:16),TextField(controller:historical,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Abonos anteriores al sistema · USD')),const SizedBox(height:10),const Text('Los abonos históricos son antecedentes. No se suman otra vez a los fondos actuales.')],
-      const SizedBox(height:16),OutlinedButton.icon(onPressed:busy?null:chooseDate,icon:const Icon(Icons.calendar_today),label:Text(widget.payment?'Fecha del pago: ${iso(paymentDate)}':activityDate==null?'Fecha opcional · no disponible':'Fecha: ${iso(activityDate!)}')),
-      if(!widget.payment&&activityDate!=null)TextButton(onPressed:()=>setState(()=>activityDate=null),child:const Text('Dejar sin fecha')),
-      const SizedBox(height:16),TextField(controller:note,maxLines:3,decoration:const InputDecoration(labelText:'Nota opcional')),
-      if(!widget.payment&&widget.account!=null)...[const SizedBox(height:16),TextField(controller:reason,maxLines:2,decoration:const InputDecoration(labelText:'Motivo de la corrección'))],
-      if(error!=null)Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(error!,style:const TextStyle(color:Colors.red))),const SizedBox(height:24),FilledButton(onPressed:busy?null:save,child:Text(busy?'Guardando…':widget.payment?'Confirmar pago':'Guardar pendiente')),
-    ]))));
+  @override Widget build(BuildContext context) {
+    final selected=widget.companions.where((companion)=>companion['id']==companionId).firstOrNull;
+    return PopScope(canPop:!busy&&!dirty,onPopInvokedWithResult:(didPop,result)async{if(!didPop&&await leave()&&mounted){setState(()=>dirty=false);if(context.mounted)Navigator.pop(context);}},child:Scaffold(
+      appBar:AppBar(toolbarHeight:MediaQuery.textScalerOf(context).scale(20)*2*1.3+24,title:Text(widget.payment?'Registrar pago':widget.account==null?'Nuevo pendiente':'Corregir pendiente',maxLines:2,style:const TextStyle(fontSize:20)),actions:const [ThemeButton()]),
+      body:ResponsiveBody(child:AbsorbPointer(absorbing:busy,child:ListView(padding:const EdgeInsets.fromLTRB(16,20,16,24),children:[
+        if(widget.payment)...[
+          FormSection(title:widget.account!['name'].toString(),icon:Icons.person_outline,subtitle:widget.account!['activity'].toString(),children:[MoneyCaption('Por cobrar',widget.account!['pending_cents'],emphasis:true)]),
+          const InfoNote('El pago se sumará al fondo general. No lo ingreses otra vez en Movimientos.'),
+          FormSection(title:'Dinero recibido',icon:Icons.add_card_outlined,children:[TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),style:const TextStyle(fontSize:25,fontWeight:FontWeight.w700),decoration:const InputDecoration(labelText:'Pago · USD',prefixText:'\$ ',hintText:'0,00'))]),
+        ]else...[
+          const InfoNote('Las deudas son informativas hasta que se recibe un pago. Los abonos históricos no vuelven a sumarse a los fondos.'),
+          FormSection(title:'Compañero y actividad',icon:Icons.volunteer_activism_outlined,children:[SelectionField(label:'Compañero',value:selected?['name']?.toString()??widget.account?['name']?.toString()??'Elegir del registro del grupo',icon:Icons.person_search,onTap:chooseCompanion),const SizedBox(height:16),TextField(controller:activity,decoration:const InputDecoration(labelText:'Actividad',hintText:'Bingo, rifa u otra actividad'))]),
+          FormSection(title:'Valores del compromiso',icon:Icons.account_balance_wallet_outlined,children:[TextField(controller:original,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Deuda original · USD',prefixText:'\$ ')),const SizedBox(height:16),TextField(controller:historical,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Abonos históricos · USD',prefixText:'\$ '))]),
+        ],
+        FormSection(title:'Fecha y observaciones',icon:Icons.calendar_month,children:[
+          SelectionField(label:widget.payment?'Fecha del pago':'Fecha de la actividad',value:widget.payment?iso(paymentDate):activityDate==null?'Sin fecha · opcional':iso(activityDate!),icon:Icons.calendar_month,onTap:chooseDate),
+          if(!widget.payment&&activityDate!=null)TextButton(onPressed:()=>setState((){activityDate=null;dirty=true;}),child:const Text('Dejar sin fecha')),
+          const SizedBox(height:16),TextField(controller:note,maxLines:3,decoration:const InputDecoration(labelText:'Nota opcional')),
+        ]),
+        if(!widget.payment&&widget.account!=null)FormSection(title:'Motivo de la corrección',icon:Icons.edit_note,children:[TextField(controller:reason,maxLines:3,decoration:const InputDecoration(labelText:'Motivo'))]),
+        if(error!=null)InfoNote(error!,icon:Icons.error_outline),
+        FilledButton.icon(onPressed:busy?null:save,icon:Icon(busy?Icons.hourglass_top:Icons.check),label:Text(busy?'Guardando…':widget.payment?'Confirmar pago':'Guardar pendiente')),
+      ]))),
+    ));
   }
 }

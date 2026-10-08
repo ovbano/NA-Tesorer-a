@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'brand.dart';
+import 'treasury_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -18,13 +19,22 @@ class _EntryEditorState extends State<EntryEditor> {
   @override void initState(){super.initState();final e=widget.entry??{};id=e['id']??const Uuid().v4();version=e['version']??0;kind=e['kind']??'income';category=e['category']??'seventh';fund=e['fund']??'general';date=DateTime.parse(e['entry_date']??iso(today()));due=DateTime.parse(e['due_month']??period(widget.month));memberId=e['member_id'];receiptPath=e['receipt_path'];amount.text=e['amount_cents']==null?'':((e['amount_cents'] as num)/100).toStringAsFixed(2);description.text=e['description']??'';noReceipt.text=e['no_receipt_reason']??'';for(final c in [amount,description,noReceipt,reason]){c.addListener(()=>dirty=true);}}
   @override void dispose(){for(final c in [amount,description,noReceipt,reason]){c.dispose();}super.dispose();}
   void changed(VoidCallback update){setState((){update();dirty=true;});}
-  Future<void> pick(ImageSource source) async {try{final result=await ImagePicker().pickImage(source:source,maxWidth:1600,maxHeight:1600,imageQuality:78);if(result!=null)changed(()=>photo=result);}catch(e){if(mounted)setState(()=>error='No se pudo abrir la cámara o galería. Revisa los permisos.');}}
+  Future<void> pick(ImageSource source) async {try{final result=await ImagePicker().pickImage(source:source,maxWidth:1600,maxHeight:1600,imageQuality:78);if(result!=null&&mounted)changed(()=>photo=result);}catch(e){if(mounted)setState(()=>error='No se pudo abrir la cámara o galería. Revisa los permisos.');}}
   Future<bool> leave()async {if(busy)return false;if(!dirty)return true;return await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('¿Salir sin guardar?'),content:const Text('Los datos que has escrito se perderán. Puedes volver y guardarlos como borrador.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Seguir editando')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Salir'))]))??false;}
   Future<void> chooseMember() async {
     final choices=<Json>[...widget.members.map((m)=>{'value':m['id'],'name':m['name']}),...widget.companions.where((c)=>!widget.members.any((m)=>m['source_anniversary_id']==c['id'])).map((c)=>{'value':'source:${c['id']}','name':c['name']})];
-    final selected=await showModalBottomSheet<String>(context:context,isScrollControlled:true,useSafeArea:true,builder:(context){var query='';return StatefulBuilder(builder:(context,set)=>Padding(padding:EdgeInsets.fromLTRB(20,20,20,MediaQuery.viewInsetsOf(context).bottom+20),child:SizedBox(height:MediaQuery.sizeOf(context).height*.65,child:Column(children:[TextField(autofocus:true,decoration:const InputDecoration(labelText:'Buscar compañero',prefixIcon:Icon(Icons.search)),onChanged:(v)=>set(()=>query=v.toLowerCase())),const SizedBox(height:12),Expanded(child:ListView(children:choices.where((c)=>c['name'].toString().toLowerCase().contains(query)).map((c)=>ListTile(leading:const Icon(Icons.person_outline),title:Text(c['name']),onTap:()=>Navigator.pop(context,c['value']))).toList()))]))));});
-    if(selected!=null)changed(()=>memberId=selected);
+    final selected=await selectOption(context,title:'Elegir compañero',options:choices,selected:memberId,searchable:true);
+    if(selected!=null&&mounted)changed(()=>memberId=selected);
   }
+  Future<void> chooseCategory() async {
+    final value=await selectOption(context,title:'Categoría del movimiento',selected:category,options:categories.entries.where((entry)=>incomeCategories.contains(entry.key)==(kind=='income')).map((entry)=><String,dynamic>{'value':entry.key,'name':entry.value}).toList());
+    if(value!=null&&mounted)changed((){category=value;if(category=='rent'||rent)fund='rent';if(category=='seventh')fund='general';});
+  }
+  Future<void> chooseFund() async {
+    final value=await selectOption(context,title:'Fondo que recibe o paga',selected:fund,options:const [{'value':'general','name':'General · gastos del grupo'},{'value':'rent','name':'Local · reservado para arriendo'}]);
+    if(value!=null&&mounted)changed(()=>fund=value);
+  }
+
   Future<void> save(bool posted) async {
     if(busy)return;
     try {
@@ -42,20 +52,56 @@ class _EntryEditorState extends State<EntryEditor> {
       dirty=false;if(mounted)Navigator.pop(context,true);
     }catch(e){if(mounted)setState(()=>error=message(e));}finally{if(mounted)setState(()=>busy=false);}
   }
-  Future<void> pickDate(bool month)async{final initial=month?due:date;final start=DateTime.parse(widget.settings['start_month']);final picked=await showDatePicker(context:context,initialDate:initial,firstDate:month?DateTime(start.year,start.month):start,lastDate:month?DateTime(today().year+2,12,31):today(),helpText:month?'Elige cualquier día del mes del aporte':'Fecha del movimiento');if(picked!=null)changed(()=>month?due=DateTime(picked.year,picked.month):date=picked);}
-  @override Widget build(BuildContext context){
-    final selected=[...widget.members.map((m)=>{'value':m['id'],'name':m['name']}),...widget.companions.map((c)=>{'value':'source:${c['id']}','name':c['name']})].where((c)=>c['value']==memberId).firstOrNull;
-    return PopScope(canPop:!dirty&&!busy,onPopInvokedWithResult:(didPop,result)async{if(!didPop&&await leave()&&mounted){setState(()=>dirty=false);if(context.mounted)Navigator.pop(context);}},child:Scaffold(appBar:AppBar(title:Text(correcting?'Corregir movimiento':widget.entry==null?'Nuevo movimiento':'Completar borrador')),body:ResponsiveBody(child:AbsorbPointer(absorbing:busy,child:ListView(padding:const EdgeInsets.all(20),children:[
-      SegmentedButton<String>(segments:const [ButtonSegment(value:'income',label:Text('Ingreso'),icon:Icon(Icons.south_west)),ButtonSegment(value:'expense',label:Text('Egreso'),icon:Icon(Icons.north_east))],selected:{kind},onSelectionChanged:(v)=>changed((){kind=v.first;category=kind=='income'?'seventh':'supplies';fund='general';})),const SizedBox(height:20),
-      DropdownButtonFormField<String>(value:category,key:ValueKey(category),isExpanded:true,decoration:const InputDecoration(labelText:'Categoría'),items:categories.entries.where((e)=>incomeCategories.contains(e.key)==(kind=='income')).map((e)=>DropdownMenuItem(value:e.key,child:Text(e.value))).toList(),onChanged:(v)=>changed((){category=v!;if(category=='rent'||rent)fund='rent';if(category=='seventh')fund='general';})),const SizedBox(height:16),
-      DropdownButtonFormField<String>(value:fund,key:ValueKey(fund),isExpanded:true,decoration:const InputDecoration(labelText:'Fondo que recibe o paga'),items:const [DropdownMenuItem(value:'general',child:Text('Dinero para gastos del grupo')),DropdownMenuItem(value:'rent',child:Text('Dinero para el local'))],onChanged:['rent','rent_contribution','seventh'].contains(category)?null:(v)=>changed(()=>fund=v!)),const SizedBox(height:16),
-      OutlinedButton.icon(onPressed:()=>pickDate(false),icon:const Icon(Icons.calendar_month),label:Text('Fecha: ${iso(date)}')),const SizedBox(height:16),
-      TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Monto · USD',hintText:'Ejemplo: 12,50')),const SizedBox(height:16),TextField(controller:description,decoration:const InputDecoration(labelText:'Detalle del movimiento'),maxLines:2),
-      if(rent)...[const SizedBox(height:16),OutlinedButton.icon(onPressed:chooseMember,icon:const Icon(Icons.person_search),label:Text(selected?['name']??'Elegir compañero')),OutlinedButton.icon(onPressed:()=>pickDate(true),icon:const Icon(Icons.date_range),label:Text('Mes del aporte: ${period(due).substring(0,7)}'))],
-      const SizedBox(height:22),const Text('COMPROBANTE',style:TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:10),Wrap(spacing:10,children:[OutlinedButton.icon(onPressed:()=>pick(ImageSource.camera),icon:const Icon(Icons.camera_alt_outlined),label:const Text('Tomar foto')),OutlinedButton.icon(onPressed:()=>pick(ImageSource.gallery),icon:const Icon(Icons.photo_library_outlined),label:const Text('Galería'))]),
-      if(photo!=null)Padding(padding:const EdgeInsets.symmetric(vertical:12),child:ClipRRect(borderRadius:BorderRadius.circular(16),child:FutureBuilder<Uint8List>(future:photo!.readAsBytes(),builder:(context,s)=>s.hasData?Image.memory(s.data!,height:180,fit:BoxFit.contain):const SizedBox(height:180,child:Center(child:CircularProgressIndicator()))))),if(receiptPath!=null)const ListTile(leading:Icon(Icons.check_circle_outline),title:Text('Comprobante adjunto')),
-      if(kind=='expense')...[const SizedBox(height:16),TextField(controller:noReceipt,decoration:const InputDecoration(labelText:'Si no hay comprobante, explica el motivo'),maxLines:2)],
-      if(correcting)...[const SizedBox(height:16),TextField(controller:reason,decoration:const InputDecoration(labelText:'Motivo de la corrección'),maxLines:2)],if(error!=null)Padding(padding:const EdgeInsets.only(top:16),child:Text(error!,style:const TextStyle(color:Colors.red))),const SizedBox(height:100),
-    ]))),bottomNavigationBar:SafeArea(child:Padding(padding:const EdgeInsets.all(16),child:Wrap(spacing:12,runSpacing:12,alignment:WrapAlignment.center,children:[if(!correcting)OutlinedButton(onPressed:busy?null:()=>save(false),child:const Text('Borrador')),FilledButton(onPressed:busy?null:()=>save(true),child:Text(busy?'Guardando…':correcting?'Guardar corrección':'Confirmar'))])))));
+  Future<void> pickDate(bool month) async {
+    final initial=month?due:date;
+    final start=DateTime.parse(widget.settings['start_month']);
+    final first=month?DateTime(start.year,start.month):start;
+    final last=month?DateTime(today().year+2,12,31):today();
+    if(first.isAfter(last)){setState(()=>error='El inicio de Tesorería es posterior a hoy. Revisa los fondos iniciales.');return;}
+    final safeInitial=initial.isBefore(first)?first:initial.isAfter(last)?last:initial;
+    final picked=await showDatePicker(context:context,initialDate:safeInitial,firstDate:first,lastDate:last,helpText:month?'Mes del aporte':'Fecha del movimiento');
+    if(picked!=null&&mounted)changed((){if(month){due=DateTime(picked.year,picked.month);}else{date=picked;}});
+  }
+  Widget saveActions()=>Padding(padding:const EdgeInsets.all(16),child:Wrap(spacing:12,runSpacing:12,alignment:WrapAlignment.center,children:[
+    if(!correcting)OutlinedButton.icon(onPressed:busy?null:()=>save(false),icon:const Icon(Icons.edit_note),label:const Text('Guardar borrador')),
+    FilledButton.icon(onPressed:busy?null:()=>save(true),icon:Icon(busy?Icons.hourglass_top:Icons.check),label:Text(busy?'Guardando…':correcting?'Guardar corrección':'Confirmar movimiento')),
+  ]));
+  @override Widget build(BuildContext context) {
+    final compact=MediaQuery.sizeOf(context).height<500||MediaQuery.viewInsetsOf(context).bottom>0;
+    final selected=[...widget.members.map((member)=>{'value':member['id'],'name':member['name']}),...widget.companions.map((companion)=>{'value':'source:${companion['id']}','name':companion['name']})].where((companion)=>companion['value']==memberId).firstOrNull;
+    return PopScope(canPop:!dirty&&!busy,onPopInvokedWithResult:(didPop,result)async{
+      if(!didPop&&await leave()&&mounted){setState(()=>dirty=false);if(context.mounted)Navigator.pop(context);}
+    },child:Scaffold(
+      appBar:AppBar(toolbarHeight:MediaQuery.textScalerOf(context).scale(20)*2*1.3+24,title:Text(correcting?'Corregir movimiento':widget.entry==null?'Nuevo movimiento':'Completar borrador',maxLines:2,style:const TextStyle(fontSize:20)),actions:const [ThemeButton()]),
+      body:ResponsiveBody(child:AbsorbPointer(absorbing:busy,child:ListView(padding:const EdgeInsets.fromLTRB(16,20,16,24),children:[
+        const InfoNote('General: gastos del grupo. Local: dinero reservado para el arriendo. Puedes guardar un borrador y completarlo después.'),
+        FormSection(title:'Datos del movimiento',icon:Icons.swap_vert,children:[
+          Wrap(spacing:10,runSpacing:10,children:[for(final option in const {'income':'Ingreso','expense':'Egreso'}.entries)ChoiceChip(label:Text(option.value),avatar:Icon(option.key=='income'?Icons.south_west:Icons.north_east,size:18),selected:kind==option.key,onSelected:(_)=>changed((){kind=option.key;category=kind=='income'?'seventh':'supplies';fund='general';}))]),
+          const SizedBox(height:18),SelectionField(label:'Categoría',value:categories[category]??category,onTap:chooseCategory),
+          const SizedBox(height:16),SelectionField(label:'Fondo que recibe o paga',value:fund=='rent'?'Local · reservado para arriendo':'General · gastos del grupo',onTap:['rent','rent_contribution','seventh'].contains(category)?null:chooseFund),
+          const SizedBox(height:16),SelectionField(label:'Fecha del movimiento',value:iso(date),icon:Icons.calendar_month,onTap:()=>pickDate(false)),
+          const SizedBox(height:16),TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),style:const TextStyle(fontSize:25,fontWeight:FontWeight.w700),decoration:const InputDecoration(labelText:'Monto · USD',hintText:'0,00',prefixText:'\$ ')),
+          const SizedBox(height:16),TextField(controller:description,maxLines:3,decoration:const InputDecoration(labelText:'Detalle',hintText:'Ejemplo: séptima de la reunión')),
+        ]),
+        if(rent)FormSection(title:'Aporte para el local',icon:Icons.home_outlined,children:[
+          SelectionField(label:'Compañero',value:selected?['name']?.toString()??'Elegir del registro del grupo',icon:Icons.person_search,onTap:chooseMember),
+          const SizedBox(height:16),SelectionField(label:'Mes del aporte',value:monthLabel(due),icon:Icons.date_range,onTap:()=>pickDate(true)),
+        ]),
+        FormSection(title:'Comprobante',icon:Icons.receipt_long_outlined,subtitle:'Toma una fotografía o selecciona una imagen de tu galería.',children:[
+          Wrap(spacing:10,runSpacing:10,children:[OutlinedButton.icon(onPressed:()=>pick(ImageSource.camera),icon:const Icon(Icons.camera_alt_outlined),label:const Text('Tomar foto')),OutlinedButton.icon(onPressed:()=>pick(ImageSource.gallery),icon:const Icon(Icons.photo_library_outlined),label:const Text('Galería'))]),
+          if(photo!=null)...[const SizedBox(height:16),ClipRRect(borderRadius:BorderRadius.circular(16),child:FutureBuilder<Uint8List>(future:photo!.readAsBytes(),builder:(context,snapshot){
+            if(snapshot.hasError)return const InfoNote('No se pudo abrir esta fotografía. Selecciona otra.');
+            if(!snapshot.hasData)return const SizedBox(height:160,child:Center(child:CircularProgressIndicator()));
+            return Image.memory(snapshot.data!,height:220,fit:BoxFit.contain,errorBuilder:(_,error,stack)=>const InfoNote('Esta imagen no se puede mostrar. Selecciona otra.'));
+          }))],
+          if(receiptPath!=null)...[const SizedBox(height:16),const StatusPill('Comprobante adjunto',complete:true)],
+          if(kind=='expense')...[const SizedBox(height:16),TextField(controller:noReceipt,maxLines:3,decoration:const InputDecoration(labelText:'Si no hay comprobante',hintText:'Explica el motivo'))],
+        ]),
+        if(correcting)FormSection(title:'Motivo de la corrección',icon:Icons.edit_note,subtitle:'La modificación quedará registrada en el historial.',children:[TextField(controller:reason,maxLines:3,decoration:const InputDecoration(labelText:'Motivo'))]),
+        if(error!=null)InfoNote(error!,icon:Icons.error_outline),
+        if(compact)saveActions(),
+      ]))),
+      bottomNavigationBar:compact?null:SafeArea(child:saveActions()),
+    ));
   }
 }

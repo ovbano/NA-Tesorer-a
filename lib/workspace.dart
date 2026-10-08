@@ -9,6 +9,7 @@ import 'entry_editor.dart';
 import 'activity_editor.dart';
 import 'report_pdf.dart';
 import 'brand.dart';
+import 'treasury_widgets.dart';
 import 'group_logo.dart';
 import 'package:flutter/services.dart';
 
@@ -22,8 +23,9 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
   Json get profile=>liveProfile??widget.profile;String query='',kind='all';
   bool get writable=>accessError==null && ['admin','treasurer'].contains(profile['role']);
   bool get closed=>report?['closure']!=null;
-  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);reload();}
-  @override void dispose(){generation++;WidgetsBinding.instance.removeObserver(this);super.dispose();}
+  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);appearance.addListener(appearanceChanged);reload();}
+  @override void dispose(){generation++;appearance.removeListener(appearanceChanged);WidgetsBinding.instance.removeObserver(this);super.dispose();}
+  void appearanceChanged(){if(mounted)setState((){});}
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed)reload();}
   Future<void> reload()async{
     final ticket=++generation;setState((){loading=true;error=null;});
@@ -43,14 +45,18 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
     final result=await Navigator.push<bool>(context,MaterialPageRoute(builder:(_)=>EntryEditor(repo:widget.repo,month:month,settings:settings!,members:members,companions:companions,entry:entry)));
     if(result==true&&mounted){notify('Movimiento guardado.');await reload();}
   }
-  Future<void> chooseMonth()async{
-    var year=month.year;
-    final value=await showDialog<DateTime>(context:context,builder:(c)=>StatefulBuilder(builder:(c,set)=>AlertDialog(title:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[IconButton(tooltip:'Año anterior',onPressed:()=>set(()=>year--),icon:const Icon(Icons.chevron_left)),Text('$year'),IconButton(tooltip:'Año siguiente',onPressed:()=>set(()=>year++),icon:const Icon(Icons.chevron_right))]),content:SizedBox(width:340,child:Wrap(spacing:6,runSpacing:6,children:List.generate(12,(i)=>SizedBox(width:MediaQuery.sizeOf(c).width<380?72:88,child:OutlinedButton(onPressed:()=>Navigator.pop(c,DateTime(year,i+1)),child:Text(monthNames[i].substring(0,3))))))))));
+  Future<void> chooseMonth() async {
+    final value=await showModalBottomSheet<DateTime>(context:context,isScrollControlled:true,useSafeArea:true,builder:(_)=>MonthSheet(selected:month));
     if(value!=null&&mounted){setState(()=>month=value);await reload();}
+  }
+  Future<void> shiftMonth(int delta) async {
+    if(working||loading)return;
+    setState(()=>month=DateTime(month.year,month.month+delta));
+    await reload();
   }
   Future<String?> ask(String title,String label,{bool password=false}) async {
     final controller=TextEditingController();
-    final value=await showDialog<String>(context:context,builder:(c)=>AlertDialog(title:Text(title),content:TextField(controller:controller,obscureText:password,decoration:InputDecoration(labelText:label),maxLines:password?1:3),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,controller.text),child:const Text('Continuar'))]));
+    final value=await showDialog<String>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:Text(title),content:TextField(controller:controller,obscureText:password,decoration:InputDecoration(labelText:password?'Contraseña':null,hintText:password?null:label,helperText:password?label:null,helperMaxLines:3),maxLines:password?1:3),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,controller.text),child:const Text('Continuar'))]));
     // Route disposal follows its reverse animation; avoid disposing a focused controller early.
     await Future<void>.delayed(const Duration(milliseconds:300));controller.dispose();return value;
   }
@@ -69,12 +75,12 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
     final general=TextEditingController(text:settings==null?'':((settings!['opening_general'] as num)/100).toStringAsFixed(2));
     final local=TextEditingController(text:settings==null?'':((settings!['opening_rent'] as num)/100).toStringAsFixed(2));
     final note=TextEditingController(text:settings?['note']??''),reason=TextEditingController();DateTime start=settings==null?month:DateTime.parse(settings!['start_month']);String? feedback;bool saving=false;
-    await showDialog<void>(context:context,barrierDismissible:false,builder:(c)=>StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(title:Text(settings==null?'Registrar fondos iniciales':'Corregir fondos iniciales'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('Registra dinero físico verificado. General: gastos del grupo. Local: dinero reservado para arriendo. No incluyas deudas pendientes.'),TextButton(onPressed:saving?null:()async{final d=await showDatePicker(context:c,initialDate:start,firstDate:DateTime(2013),lastDate:today());if(d!=null)set(()=>start=DateTime(d.year,d.month));},child:Text('Mes de inicio: ${period(start).substring(0,7)}')),TextField(controller:general,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Gastos del grupo · USD')),const SizedBox(height:12),TextField(controller:local,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Apartado para el local · USD')),const SizedBox(height:12),TextField(controller:note,decoration:const InputDecoration(labelText:'Nota')),if(settings!=null)...[const SizedBox(height:12),const Text('La corrección recalcula los saldos y reabre meses cerrados. Revisa después los informes.'),TextField(controller:reason,decoration:const InputDecoration(labelText:'Motivo de la corrección'))],if(feedback!=null)Text(feedback!,style:const TextStyle(color:Colors.red))])),actions:[TextButton(onPressed:saving?null:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:saving?null:()async{try{final a=cents(general.text),b=cents(local.text);if(settings!=null&&reason.text.trim().length<5)throw const FormatException('Explica el motivo de la corrección.');set(()=>saving=true);await widget.repo.command(settings==null?'setup':'initial_update',{'start_month':period(start),'opening_general':a,'opening_rent':b,'note':note.text.trim(),'reason':reason.text.trim()});if(c.mounted)Navigator.pop(c);await reload();}catch(e){if(c.mounted)set((){feedback=message(e);saving=false;});}},child:Text(saving?'Guardando…':'Guardar'))]))));
+    await showDialog<void>(context:context,barrierDismissible:false,builder:(c)=>StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(scrollable:true,title:Text(settings==null?'Registrar fondos iniciales':'Corregir fondos iniciales'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('Registra dinero físico verificado. General: gastos del grupo. Local: dinero reservado para arriendo. No incluyas deudas pendientes.'),TextButton(onPressed:saving?null:()async{final d=await showDatePicker(context:c,initialDate:start,firstDate:DateTime(2013),lastDate:today());if(d!=null)set(()=>start=DateTime(d.year,d.month));},child:Text('Mes de inicio: ${period(start).substring(0,7)}')),TextField(controller:general,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Gastos del grupo · USD')),const SizedBox(height:12),TextField(controller:local,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Apartado para el local · USD')),const SizedBox(height:12),TextField(controller:note,decoration:const InputDecoration(labelText:'Nota')),if(settings!=null)...[const SizedBox(height:12),const Text('La corrección recalcula los saldos y reabre meses cerrados. Revisa después los informes.'),TextField(controller:reason,decoration:const InputDecoration(labelText:'Motivo de la corrección'))],if(feedback!=null)Text(feedback!,style:const TextStyle(color:Colors.red))])),actions:[TextButton(onPressed:saving?null:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:saving?null:()async{try{final a=cents(general.text),b=cents(local.text);if(settings!=null&&reason.text.trim().length<5)throw const FormatException('Explica el motivo de la corrección.');set(()=>saving=true);await widget.repo.command(settings==null?'setup':'initial_update',{'start_month':period(start),'opening_general':a,'opening_rent':b,'note':note.text.trim(),'reason':reason.text.trim()});if(c.mounted)Navigator.pop(c);await reload();}catch(e){if(c.mounted)set((){feedback=message(e);saving=false;});}},child:Text(saving?'Guardando…':'Guardar'))]))));
     await Future<void>.delayed(const Duration(milliseconds:300));for(final controller in [general,local,note,reason]){controller.dispose();}
   }
   Future<void> export()async{
     if(report?['configured']!=true)return;
-    final photos=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Informe mensual'),content:const Text('Ingresos y egresos se presentan separados. ¿Deseas incluir también las fotografías?'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Sin fotos')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Con fotos'))]));if(photos==null)return;
+    final photos=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:const Text('Informe mensual'),content:const Text('Ingresos y egresos se presentan separados. ¿Deseas incluir también las fotografías?'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Sin fotos')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Con fotos'))]));if(photos==null)return;
     await task(()async{
       final fresh=Json.from(await widget.repo.client.rpc('treasury_prepare_report',params:{'p_month':period(month),'p_format':'pdf','p_include_dues':true}) as Map);
       final evidence=<String,Uint8List>{};var failed=0,totalBytes=0;
@@ -87,10 +93,10 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
   }
   Future<void> receipt(Json entry)async{
     final path=entry['receipt_path'];if(path==null)return;
-    await task(()async{final data=await widget.repo.client.storage.from('treasury-receipts').download(path).timeout(const Duration(seconds:20));if(!mounted)return;if(path.toString().endsWith('.pdf')){await Printing.sharePdf(bytes:data,filename:'Comprobante.pdf');}else{await showDialog<void>(context:context,builder:(c)=>Dialog(child:Column(mainAxisSize:MainAxisSize.min,children:[Flexible(child:InteractiveViewer(child:Image.memory(data,errorBuilder:(_,e,s)=>const Padding(padding:EdgeInsets.all(24),child:Text('No se pudo mostrar esta imagen.'))))),TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cerrar'))])));}});
+    await task(()async{final data=await widget.repo.client.storage.from('treasury-receipts').download(path).timeout(const Duration(seconds:20));if(!mounted)return;if(path.toString().endsWith('.pdf')){await Printing.sharePdf(bytes:data,filename:'Comprobante.pdf');}else{await showDialog<void>(context:context,builder:(c)=>Dialog(child:SizedBox(height:MediaQuery.sizeOf(c).height*.75,child:Column(children:[Expanded(child:InteractiveViewer(child:Image.memory(data,errorBuilder:(_,e,s)=>const Padding(padding:EdgeInsets.all(24),child:Text('No se pudo mostrar esta imagen.'))))),TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cerrar'))]))));}});
   }
   Future<void> detail(Json entry)async{
-    await showModalBottomSheet<void>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>Padding(padding:const EdgeInsets.all(24),child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(money(entry['amount_cents']),style:const TextStyle(fontSize:36,fontWeight:FontWeight.bold)),Text('${entry['entry_date']} · ${entry['status']}'),Text(categories[entry['category']]??entry['category']),const SizedBox(height:12),Text(entry['description']??''),Text(entry['fund']=='rent'?'Fondo para el local':'Fondo general'),if(entry['no_receipt_reason']?.toString().isNotEmpty==true)Text('Sin comprobante: ${entry['no_receipt_reason']}'),if(entry['receipt_path']!=null)TextButton.icon(onPressed:()=>receipt(entry),icon:const Icon(Icons.receipt_long),label:const Text('Abrir comprobante')),if(writable&&entry['status']!='void')FilledButton(onPressed:(){Navigator.pop(c);edit(entry);},child:Text(entry['status']=='draft'?'Completar borrador':'Corregir con motivo')),if(writable&&entry['status']=='draft')TextButton(onPressed:()async{Navigator.pop(c);final confirmed=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(title:const Text('Descartar borrador'),content:const Text('El borrador se eliminará. No afecta los fondos.'),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('Descartar'))]));if(confirmed==true)await task(()async{await widget.repo.command('discard',{'id':entry['id'],'version':entry['version']});await reload();});},child:const Text('Descartar borrador')),if(writable&&entry['status']=='posted')TextButton(onPressed:()async{Navigator.pop(c);final reason=await ask('Anular movimiento','Motivo de la anulación');if(reason==null)return;await task(()async{await widget.repo.command('void',{'id':entry['id'],'version':entry['version'],'reason':reason});await reload();});},child:const Text('Anular indicando el motivo'))]))));
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>Padding(padding:const EdgeInsets.all(24),child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(money(entry['amount_cents']),style:const TextStyle(fontSize:36,fontWeight:FontWeight.bold)),Wrap(spacing:10,runSpacing:10,children:[Text(entry['entry_date'].toString()),StatusPill(entry['status']=='posted'?'Confirmado':entry['status']=='draft'?'Borrador':'Anulado',complete:entry['status']=='posted')]),const SizedBox(height:16),Text(categories[entry['category']]??entry['category'],style:const TextStyle(fontSize:20,fontWeight:FontWeight.w700)),const SizedBox(height:12),Text(entry['description']??'',style:const TextStyle(height:1.5)),const SizedBox(height:16),InfoNote(entry['fund']=='rent'?'Fondo para el local':'Fondo general'),if(entry['no_receipt_reason']?.toString().isNotEmpty==true)Text('Sin comprobante: ${entry['no_receipt_reason']}'),if(entry['receipt_path']!=null)TextButton.icon(onPressed:()=>receipt(entry),icon:const Icon(Icons.receipt_long),label:const Text('Abrir comprobante')),if(writable&&entry['status']!='void')FilledButton(onPressed:(){Navigator.pop(c);edit(entry);},child:Text(entry['status']=='draft'?'Completar borrador':'Corregir con motivo')),if(writable&&entry['status']=='draft')TextButton(onPressed:()async{Navigator.pop(c);final confirmed=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(scrollable:true,title:const Text('Descartar borrador'),content:const Text('El borrador se eliminará. No afecta los fondos.'),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('Descartar'))]));if(confirmed==true)await task(()async{await widget.repo.command('discard',{'id':entry['id'],'version':entry['version']});await reload();});},child:const Text('Descartar borrador')),if(writable&&entry['status']=='posted')TextButton(onPressed:()async{Navigator.pop(c);final reason=await ask('Anular movimiento','Motivo de la anulación');if(reason==null)return;await task(()async{await widget.repo.command('void',{'id':entry['id'],'version':entry['version'],'reason':reason});await reload();});},child:const Text('Anular indicando el motivo'))]))));
   }
   Future<void> activityEditor([Json? account,bool payment=false])async{
     if(!writable)return;
@@ -104,7 +110,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
     try{
       final counted=cents(input)!;final fresh=await widget.repo.report(month);final total=rows(fresh['funds']).fold<num>(0,(n,f)=>n+(f['closing'] as num));
       if(!mounted)return;
-      final confirmed=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Confirmar cierre'),content:Text('Saldo calculado: ${money(total)}\nDinero contado: ${money(counted)}\nDiferencia: ${money(counted-total)}'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Confirmar'))]));
+      final confirmed=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:const Text('Confirmar cierre'),content:Text('Saldo calculado: ${money(total)}\nDinero contado: ${money(counted)}\nDiferencia: ${money(counted-total)}'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Confirmar'))]));
       if(confirmed!=true)return;final note=await ask('Nota del cierre','Explica diferencias o deja una observación');if(note==null)return;
       await task(()async{await widget.repo.command('close',{'month':period(month),'counted_cents':counted,'note':note.trim()});await reload();});
     }catch(e){notify(message(e));}
@@ -132,11 +138,85 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
         ])),const Icon(Icons.chevron_right,size:20),
       ]))));
   }
-  List<Widget> overview(){final funds=rows(report?['funds']);final total=funds.fold<num>(0,(n,f)=>n+(f['closing'] as num));return [const GroupBanner(),metric('DINERO DISPONIBLE',total,dark:true),for(final f in funds)metric(f['fund']=='rent'?'Apartado para el local':'Para gastos del grupo',f['closing']),const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Las cuotas pendientes y los borradores no se suman al dinero disponible.')),if(writable)FilledButton.icon(onPressed:working?null:()=>edit(),icon:const Icon(Icons.add),label:const Text('Registrar ingreso o egreso')),const SizedBox(height:16),Text(closed?'Mes cerrado':'Mes abierto',style:const TextStyle(fontWeight:FontWeight.bold)),for(final label in ['opening','income','expense'])Padding(padding:const EdgeInsets.symmetric(vertical:10,horizontal:4),child:Wrap(alignment:WrapAlignment.spaceBetween,spacing:24,runSpacing:8,children:[Text({'opening':'Saldo al inicio','income':'Ingresos del mes','expense':'Egresos del mes'}[label]!),Text(money(funds.fold<num>(0,(n,f)=>n+(f[label] as num))),style:const TextStyle(fontWeight:FontWeight.w700,fontSize:18))])),OutlinedButton.icon(onPressed:working?null:export,icon:const Icon(Icons.picture_as_pdf_outlined),label:const Text('Compartir informe PDF')),const SizedBox(height:20),const Text('Movimientos recientes',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),...rows(report?['entries']).reversed.take(5).map(entryTile)];}
-  List<Widget> movementView()=>[TextField(decoration:const InputDecoration(labelText:'Buscar movimiento',prefixIcon:Icon(Icons.search)),onChanged:(v)=>setState(()=>query=v.toLowerCase())),const SizedBox(height:12),Wrap(spacing:8,runSpacing:8,children:[for(final filter in const {'all':'Todos','income':'Ingresos','expense':'Egresos'}.entries)ChoiceChip(label:Text(filter.value),selected:kind==filter.key,onSelected:(_)=>setState(()=>kind=filter.key))]),const SizedBox(height:12),...rows(report?['entries']).reversed.where((e)=>(kind=='all'||e['kind']==kind)&&'${e['description']} ${e['member_name']} ${categories[e['category']]}'.toLowerCase().contains(query)).map(entryTile),if(drafts.isNotEmpty)...[const SizedBox(height:20),const Text('BORRADORES · no afectan el saldo',style:TextStyle(fontWeight:FontWeight.bold)),...drafts.map(entryTile)]];
-  List<Widget> duesView()=>[const Text('Aportes para el local',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const Text('Los pagos confirmados ya están incluidos en el fondo del local.'),...rows(report?['dues']).map((d)=>Card(child:ListTile(leading:const Icon(Icons.person_outline),title:Text(d['name']),subtitle:Text('Cuota: ${money(d['expected'])}\nRecibido: ${money(d['paid'])} · Pendiente: ${money(((d['expected'] as num)-(d['paid'] as num)).clamp(0,100000000))}')))),const SizedBox(height:20),const Text('Pendientes de actividades',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),const Text('Datos informativos: no forman parte del dinero disponible hasta que se cobra. Cada pago nuevo se incorpora automáticamente al fondo general.'),if(writable)OutlinedButton.icon(onPressed:()=>activityEditor(),icon:const Icon(Icons.add),label:const Text('Nuevo pendiente')),...activities.map((a)=>Card(child:ExpansionTile(title:Text(a['name']),subtitle:Text('${a['activity']}\nPor cobrar: ${money(a['pending_cents'])}'),children:[if(writable&&a['pending_cents']>0)TextButton(onPressed:()=>activityEditor(a,true),child:const Text('Registrar pago')),if(writable)TextButton(onPressed:()=>activityEditor(a),child:const Text('Corregir pendiente')),...rows(a['payments']).map((e)=>ListTile(title:Text('${e['entry_date']} · ${money(e['amount_cents'])}'),subtitle:const Text('Ver movimiento y comprobante'),onTap:()=>detail(e)))])))];
+  List<Widget> overview() {
+    final funds=rows(report?['funds']);
+    final total=funds.fold<num>(0,(sum,fund)=>sum+(fund['closing'] as num));
+    final recent=rows(report?['entries']).reversed.take(5).toList();
+    return [
+      const GroupBanner(),
+      const SectionTitle('Nuestro fondo',subtitle:'Un registro claro al servicio del grupo.'),
+      metric('Dinero disponible',total,dark:true),
+      LayoutBuilder(builder:(context,constraints) {
+        final columns=constraints.maxWidth>=560 && MediaQuery.textScalerOf(context).scale(16)<24;
+        return Wrap(spacing:16,children:[for(final fund in funds)SizedBox(width:columns?(constraints.maxWidth-16)/2:constraints.maxWidth,child:metric(fund['fund']=='rent'?'Apartado para el local':'Para gastos del grupo',fund['closing']))]);
+      }),
+      const InfoNote('Las cuotas pendientes y los borradores no se suman al dinero disponible.'),
+      if(writable)FilledButton.icon(onPressed:working?null:()=>edit(),icon:const Icon(Icons.add),label:const Text('Registrar ingreso o egreso')),
+      const SizedBox(height:24),
+      LedgerPanel(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Wrap(spacing:12,runSpacing:10,alignment:WrapAlignment.spaceBetween,children:[const Text('Balance del mes',style:TextStyle(fontSize:20,fontWeight:FontWeight.w700)),StatusPill(closed?'Mes cerrado':'Mes abierto',complete:closed)]),
+        const SizedBox(height:22),
+        Wrap(spacing:28,runSpacing:20,children:[for(final field in const {'opening':'Saldo al inicio','income':'Ingresos','expense':'Egresos'}.entries)MoneyCaption(field.value,funds.fold<num>(0,(sum,fund)=>sum+(fund[field.key] as num)))]),
+        const SizedBox(height:24),OutlinedButton.icon(onPressed:working?null:export,icon:const Icon(Icons.picture_as_pdf_outlined),label:const Text('Compartir informe PDF')),
+      ])),
+      const SectionTitle('Movimientos recientes',icon:Icons.history),
+      if(recent.isEmpty)const EmptyLedger('Todavía no hay movimientos','Los ingresos y egresos de este mes aparecerán aquí.'),
+      ...recent.map(entryTile),
+    ];
+  }
+  List<Widget> movementView() {
+    final filtered=rows(report?['entries']).reversed.where((entry)=>(kind=='all'||entry['kind']==kind)&&'${entry['description']} ${entry['member_name']} ${categories[entry['category']]}'.toLowerCase().contains(query)).toList();
+    return [
+      const SectionTitle('Movimientos',subtitle:'Ingresos y egresos del período seleccionado.',icon:Icons.swap_vert),
+      if(writable) ...[FilledButton.icon(onPressed:working?null:()=>edit(),icon:const Icon(Icons.add),label:const Text('Nuevo movimiento')),const SizedBox(height:18)],
+      TextField(decoration:const InputDecoration(hintText:'Buscar detalle o compañero',prefixIcon:Icon(Icons.search)),onChanged:(value)=>setState(()=>query=value.toLowerCase())),
+      const SizedBox(height:14),Wrap(spacing:8,runSpacing:8,children:[for(final filter in const {'all':'Todos','income':'Ingresos','expense':'Egresos'}.entries)ChoiceChip(label:Text(filter.value),selected:kind==filter.key,onSelected:(_)=>setState(()=>kind=filter.key))]),
+      const SizedBox(height:16),
+      if(filtered.isEmpty)const EmptyLedger('Sin movimientos para mostrar','Cambia el filtro o selecciona otro mes.'),
+      ...filtered.map(entryTile),
+      if(drafts.isNotEmpty)...[const SectionTitle('Borradores',subtitle:'Registros por completar. No afectan el saldo.',icon:Icons.edit_note),...drafts.map(entryTile)],
+    ];
+  }
+  List<Widget> duesView() {
+    final dues=rows(report?['dues']);
+    final pendingActivities=activities.fold<num>(0,(sum,account)=>sum+(account['pending_cents'] as num));
+    return [
+      const SectionTitle('Aportes para el local',subtitle:'El compromiso de mantener nuestro espacio.',icon:Icons.home_outlined),
+      LedgerPanel(child:Wrap(spacing:28,runSpacing:18,children:[MoneyCaption('Cuotas del mes',dues.fold<num>(0,(sum,due)=>sum+(due['expected'] as num))),MoneyCaption('Recibido',dues.fold<num>(0,(sum,due)=>sum+(due['paid'] as num)))])),
+      const InfoNote('Los aportes confirmados ya están incluidos en el fondo del local.'),
+      if(dues.isEmpty)const EmptyLedger('Sin cuotas en este mes','Puedes registrar un aporte desde Nuevo movimiento.',icon:Icons.people_outline),
+      for(final due in dues)DueCard(key:ValueKey('due-${due['id']}'),due:due),
+      const SizedBox(height:14),
+      const SectionTitle('Actividades del grupo',subtitle:'Bingos, rifas y otros compromisos pendientes.',icon:Icons.volunteer_activism_outlined),
+      LedgerPanel(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[MoneyCaption('Total por cobrar',pendingActivities,emphasis:true),const SizedBox(height:12),const Text('Este valor es informativo. Solo los pagos recibidos se incorporan al fondo general.',style:TextStyle(height:1.5))])),
+      if(writable)...[OutlinedButton.icon(onPressed:working?null:()=>activityEditor(),icon:const Icon(Icons.add),label:const Text('Nuevo pendiente')),const SizedBox(height:18)],
+      if(activities.isEmpty)const EmptyLedger('No hay pendientes de actividades','Registra un compromiso para llevar sus pagos y comprobantes.',icon:Icons.check_circle_outline),
+      for(final account in activities)ActivityCard(
+        key:ValueKey('activity-card-${account['id']}'),account:account,
+        onPay:writable&&!working?()=>activityEditor(account,true):null,
+        onEdit:writable&&!working?()=>activityEditor(account):null,
+        onPayment:detail,
+      ),
+    ];
+  }
   Future<void> audit()async{await task(()async{final data=await widget.repo.client.from('treasury_audit').select('action,actor_name,happened_at').order('id',ascending:false).limit(50);if(!mounted)return;await showModalBottomSheet<void>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>SizedBox(height:MediaQuery.sizeOf(c).height*.8,child:ListView(padding:const EdgeInsets.all(20),children:[const Text('Últimos 50 cambios',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),...data.map((a)=>ListTile(leading:const Icon(Icons.history),title:Text(a['actor_name']??'Usuario'),subtitle:Text('${a['action']} · ${a['happened_at']}')))])));});}
-  List<Widget> more()=>[const GroupBanner(),SwitchListTile(title:const Text('Tema oscuro'),subtitle:const Text('La preferencia se guarda en este dispositivo'),secondary:const Icon(Icons.dark_mode_outlined),value:Theme.of(context).brightness==Brightness.dark,onChanged:(dark){appearance.setMode(dark?ThemeMode.dark:ThemeMode.light);}),TextButton(onPressed:(){appearance.setMode(ThemeMode.system);},child:const Text('Usar apariencia del dispositivo')),ListTile(leading:const Icon(Icons.help_outline),title:const Text('Cómo utilizar Tesorería'),subtitle:const Text('General: séptimas y otros ingresos. Local: aportes para arriendo. Borrador: registro por completar, no suma dinero. Confirmar: incorpora el movimiento al saldo. Corregir: conserva el historial.'),isThreeLine:true),if(writable&&report?['configured']==true)ListTile(leading:const Icon(Icons.lock_clock),title:Text(closed?'Reabrir mes con motivo':'Cerrar mes y verificar dinero'),onTap:working?null:closeMonth),ListTile(leading:const Icon(Icons.history),title:const Text('Historial de cambios'),onTap:working?null:audit),ListTile(leading:const Icon(Icons.language),title:const Text('Abrir Tesorería web'),subtitle:const Text('Gestionar actividades, compañeros y cierres mensuales'),onTap:()=>launchUrl(Uri.parse('https://narcoticos-anonimos-azure.vercel.app/tesoreria/'),mode:LaunchMode.externalApplication)),if(writable)ListTile(leading:const Icon(Icons.account_balance),title:const Text('Corregir fondos iniciales'),onTap:working?null:initialFunds),if(profile['role']=='admin')ListTile(leading:const Icon(Icons.manage_accounts),title:const Text('Administrar usuarios'),subtitle:const Text('Abrir el panel administrativo existente'),onTap:()=>account('admin'))];
+  List<Widget> more()=>[
+    const GroupBanner(),
+    const SectionTitle('Tu espacio',subtitle:'Preferencias, herramientas y cuidado del servicio.'),
+    LedgerPanel(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      const Text('Apariencia',style:TextStyle(fontSize:19,fontWeight:FontWeight.w700)),const SizedBox(height:8),const Text('Elige cómo se presenta la app en este dispositivo.'),const SizedBox(height:16),
+      Wrap(spacing:8,runSpacing:10,children:[for(final option in const {ThemeMode.system:'Automático',ThemeMode.light:'Claro',ThemeMode.dark:'Oscuro'}.entries)ChoiceChip(label:Text(option.value),selected:appearance.mode==option.key,onSelected:(_){appearance.setMode(option.key);})]),
+    ])),
+    const ActionCard(icon:Icons.help_outline,title:'Cómo utilizar Tesorería',subtitle:'General: séptimas y otros ingresos. Local: aportes para arriendo. Borrador: registro por completar, no suma dinero. Confirmar: incorpora el movimiento al saldo. Corregir: conserva el historial.'),
+    if(writable&&report?['configured']==true)ActionCard(icon:Icons.lock_clock,title:closed?'Reabrir mes con motivo':'Cerrar mes y verificar dinero',subtitle:closed?'Revisa el motivo antes de modificar un mes cerrado.':'Compara el saldo con el dinero contado en caja.',onTap:working?null:closeMonth),
+    ActionCard(icon:Icons.history,title:'Historial de cambios',subtitle:'Consulta quién realizó cada actualización.',onTap:working?null:audit),
+    ActionCard(icon:Icons.language,title:'Abrir Tesorería web',subtitle:'Accede a la plataforma del grupo.',onTap:()=>launchUrl(Uri.parse('https://narcoticos-anonimos-azure.vercel.app/tesoreria/'),mode:LaunchMode.externalApplication)),
+    if(writable)ActionCard(icon:Icons.account_balance,title:'Corregir fondos iniciales',subtitle:'Requiere un motivo y recalcula los períodos.',onTap:working?null:initialFunds),
+    if(profile['role']=='admin')ActionCard(icon:Icons.manage_accounts,title:'Administrar usuarios',subtitle:'Abre el panel administrativo del grupo.',onTap:()=>account('admin')),
+    ActionCard(icon:Icons.password,title:'Cambiar contraseña',onTap:working?null:()=>account('password')),
+    ActionCard(icon:Icons.logout,title:'Cerrar sesión',onTap:working?null:()=>account('logout')),
+    const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Un día a la vez, juntos.\nAmigos Verdaderos · Narcóticos Anónimos',textAlign:TextAlign.center,style:TextStyle(height:1.6,fontSize:13))),
+  ];
   void selectSection(int index) {
     if(index==section)return;
     HapticFeedback.selectionClick();
@@ -145,21 +225,28 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
   List<Widget> content() => error!=null ? [Text(error!,style:TextStyle(color:Theme.of(context).colorScheme.error)),FilledButton(onPressed:reload,child:const Text('Reintentar'))]
     : report?['configured']!=true ? [const GroupBanner(),const SizedBox(height:24),Text(settings==null?'Registra los fondos iniciales para comenzar.':'Este mes es anterior al inicio de Tesorería.'),if(writable&&settings==null)FilledButton(onPressed:initialFunds,child:const Text('Registrar fondos'))]
     : section==0?overview():section==1?movementView():section==2?duesView():more();
+  Widget periodControl()=>Padding(padding:const EdgeInsets.fromLTRB(16,12,16,16),child:Row(children:[
+    IconButton(tooltip:'Mes anterior',onPressed:working||loading?null:()=>shiftMonth(-1),icon:const Icon(Icons.chevron_left)),
+    Expanded(child:SelectionField(label:'Período de consulta',value:monthLabel(month),icon:Icons.calendar_month,onTap:working||loading?null:chooseMonth)),
+    IconButton(tooltip:'Mes siguiente',onPressed:working||loading?null:()=>shiftMonth(1),icon:const Icon(Icons.chevron_right)),
+  ]));
   @override Widget build(BuildContext context) {
+    final compactHeight=MediaQuery.sizeOf(context).height<500;
+    final largeText=MediaQuery.textScalerOf(context).scale(16)>24;
     final wide=MediaQuery.sizeOf(context).width>=840;
     final name=profile['display_name']??widget.repo.client.auth.currentUser?.email??'Mi cuenta';
     return Scaffold(
-      appBar:AppBar(leading:const Padding(padding:EdgeInsets.all(10),child:GroupLogo(size:48)),title:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Tesorería',style:TextStyle(fontWeight:FontWeight.w700)),Text('$name',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:12,color:Colors.white70))]),actions:[
+      appBar:AppBar(toolbarHeight:MediaQuery.textScalerOf(context).scale(23)*1.3+MediaQuery.textScalerOf(context).scale(12)*1.5+20,leading:const Padding(padding:EdgeInsets.all(10),child:GroupLogo(size:48)),title:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Tesorería',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:23,fontWeight:FontWeight.w700)),Text('$name',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:12,color:Colors.white70))]),actions:[
         const ThemeButton(),IconButton(tooltip:'Actualizar',onPressed:loading||working?null:reload,icon:const Icon(Icons.refresh)),
         PopupMenuButton<String>(icon:const Icon(Icons.account_circle_outlined),tooltip:'Mi perfil',onSelected:account,itemBuilder:(_)=>[PopupMenuItem<String>(enabled:false,child:Text('$name\n${{'admin':'Administrador','treasurer':'Tesorería','auditor':'Consulta'}[profile['role']]}')),const PopupMenuItem(value:'password',child:Text('Cambiar contraseña')),const PopupMenuItem(value:'logout',child:Text('Cerrar sesión'))]),
       ]),
       body:SafeArea(child:Row(children:[if(wide)...[
         NavigationRail(selectedIndex:section,onDestinationSelected:selectSection,labelType:NavigationRailLabelType.all,destinations:const [NavigationRailDestination(icon:Icon(Icons.dashboard_outlined),label:Text('Resumen')),NavigationRailDestination(icon:Icon(Icons.swap_vert),label:Text('Movimientos')),NavigationRailDestination(icon:Icon(Icons.people_outline),label:Text('Aportes')),NavigationRailDestination(icon:Icon(Icons.more_horiz),label:Text('Más'))]),const VerticalDivider(width:1),
       ],Expanded(child:ResponsiveBody(child:Column(children:[
-        Padding(padding:const EdgeInsets.fromLTRB(20,12,20,12),child:OutlinedButton.icon(onPressed:working?null:chooseMonth,icon:const Icon(Icons.date_range),label:Text(monthLabel(month)))),if(working)const LinearProgressIndicator(),
-        Expanded(child:loading?const Center(child:CircularProgressIndicator()):AnimatedSwitcher(duration:MediaQuery.of(context).disableAnimations?Duration.zero:const Duration(milliseconds:180),child:RefreshIndicator(key:ValueKey(section),onRefresh:reload,child:ListView(key:PageStorageKey('treasury-section-$section'),physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(20,0,20,24),children:content())))),
+        if(!compactHeight)periodControl(),if(working)const LinearProgressIndicator(),
+        Expanded(child:loading?const Center(child:CircularProgressIndicator()):AnimatedSwitcher(duration:MediaQuery.of(context).disableAnimations?Duration.zero:const Duration(milliseconds:180),child:RefreshIndicator(key:ValueKey(section),onRefresh:reload,child:ListView(key:PageStorageKey('treasury-section-$section'),physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(20,0,20,24),children:[if(compactHeight)periodControl(),...content()])))),
       ]))),])),
-      bottomNavigationBar:wide?null:NavigationBar(selectedIndex:section,onDestinationSelected:selectSection,destinations:const [NavigationDestination(icon:Icon(Icons.dashboard_outlined),selectedIcon:Icon(Icons.dashboard),label:'Resumen'),NavigationDestination(icon:Icon(Icons.swap_vert),label:'Movimientos'),NavigationDestination(icon:Icon(Icons.people_outline),selectedIcon:Icon(Icons.people),label:'Aportes'),NavigationDestination(icon:Icon(Icons.more_horiz),label:'Más')]),
+      bottomNavigationBar:wide?null:NavigationBar(labelBehavior:largeText?NavigationDestinationLabelBehavior.alwaysHide:NavigationDestinationLabelBehavior.alwaysShow,selectedIndex:section,onDestinationSelected:selectSection,destinations:const [NavigationDestination(icon:Icon(Icons.dashboard_outlined),selectedIcon:Icon(Icons.dashboard),label:'Resumen'),NavigationDestination(icon:Icon(Icons.swap_vert),label:'Movimientos'),NavigationDestination(icon:Icon(Icons.people_outline),selectedIcon:Icon(Icons.people),label:'Aportes'),NavigationDestination(icon:Icon(Icons.more_horiz),label:'Más')]),
     );
   }
 }

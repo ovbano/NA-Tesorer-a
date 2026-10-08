@@ -31,7 +31,13 @@ ThemeData groupTheme(Brightness brightness) {
   final base = ThemeData(useMaterial3: true, brightness: brightness, colorScheme: scheme);
   return base.copyWith(
     scaffoldBackgroundColor: dark ? const Color(0xff0b1426) : const Color(0xfff3f5fa),
-    textTheme: base.textTheme.apply(fontSizeFactor: 1.04),
+    // Do not scale partially specified TextStyles. The device TextScaler
+    // supplies accessibility scaling after Material resolves font sizes.
+    textTheme: base.textTheme.copyWith(
+      bodyLarge: base.textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.5),
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(fontSize: 15, height: 1.5),
+      titleLarge: base.textTheme.titleLarge?.copyWith(fontSize: 23, fontWeight: FontWeight.w700, height: 1.3),
+    ),
     appBarTheme: const AppBarTheme(backgroundColor: brandNavy, foregroundColor: Colors.white, elevation: 0, toolbarHeight: 76),
     inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: scheme.surface, contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
@@ -64,7 +70,7 @@ class GroupBanner extends StatelessWidget {
   const GroupBanner({super.key});
   @override Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 18), padding: const EdgeInsets.all(22),
-    decoration: BoxDecoration(gradient: const LinearGradient(colors: [brandNavy, Color(0xff173f83)]), borderRadius: BorderRadius.circular(26)),
-    child: Row(children: [const GroupLogo(size: 62), const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [Text('AMIGOS VERDADEROS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)), SizedBox(height: 6), Text('Unidad · Servicio · Recuperación', style: TextStyle(color: brandGold, height: 1.5))]))]),
+    decoration: BoxDecoration(gradient: const LinearGradient(colors: [brandNavy, Color(0xff173f83)]), borderRadius: BorderRadius.circular(26),border:Border.all(color:brandGold.withOpacity(.4))),
+    child: Row(crossAxisAlignment:CrossAxisAlignment.start,children: [const GroupLogo(size: 56), const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [Text('AMIGOS VERDADEROS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)), SizedBox(height: 6), Text('Unidad · Servicio · Recuperación', style: TextStyle(color: brandGold, height: 1.5))]))]),
   );
 }
