@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'brand.dart';
 import 'package:uuid/uuid.dart';
 import 'treasury.dart';
 
@@ -53,7 +54,7 @@ class _ActivityEditorState extends State<ActivityEditor> {
   }
   @override Widget build(BuildContext context){
     final selected=widget.companions.where((p)=>p['id']==companionId).firstOrNull;
-    return PopScope(canPop:!busy,child:Scaffold(appBar:AppBar(title:Text(widget.payment?'Recibir pago de actividad':widget.account==null?'Nuevo pendiente':'Corregir pendiente')),body:ListView(padding:const EdgeInsets.all(20),children:[
+    return PopScope(canPop:!busy,child:Scaffold(appBar:AppBar(title:Text(widget.payment?'Recibir pago de actividad':widget.account==null?'Nuevo pendiente':'Corregir pendiente')),body:ResponsiveBody(child:ListView(padding:const EdgeInsets.all(20),children:[
       if(widget.payment)...[Text('${widget.account!['name']} · ${widget.account!['activity']}',style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold)),Text('Por cobrar: ${money(widget.account!['pending_cents'])}'),const SizedBox(height:16),const Text('El pago se sumará al fondo general. No lo ingreses nuevamente en Movimientos.'),const SizedBox(height:16),TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Dinero recibido · USD'))]
       else ...[OutlinedButton.icon(onPressed:busy?null:chooseCompanion,icon:const Icon(Icons.person_search),label:Text(selected?['name']??widget.account?['name']??'Elegir compañero')),const SizedBox(height:16),TextField(controller:activity,decoration:const InputDecoration(labelText:'Actividad: bingo, rifa…')),const SizedBox(height:16),TextField(controller:original,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Deuda original · USD')),const SizedBox(height:16),TextField(controller:historical,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Abonos anteriores al sistema · USD')),const SizedBox(height:10),const Text('Los abonos históricos son antecedentes. No se suman otra vez a los fondos actuales.')],
       const SizedBox(height:16),OutlinedButton.icon(onPressed:busy?null:chooseDate,icon:const Icon(Icons.calendar_today),label:Text(widget.payment?'Fecha del pago: ${iso(paymentDate)}':activityDate==null?'Fecha opcional · no disponible':'Fecha: ${iso(activityDate!)}')),
@@ -61,6 +62,6 @@ class _ActivityEditorState extends State<ActivityEditor> {
       const SizedBox(height:16),TextField(controller:note,maxLines:3,decoration:const InputDecoration(labelText:'Nota opcional')),
       if(!widget.payment&&widget.account!=null)...[const SizedBox(height:16),TextField(controller:reason,maxLines:2,decoration:const InputDecoration(labelText:'Motivo de la corrección'))],
       if(error!=null)Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(error!,style:const TextStyle(color:Colors.red))),const SizedBox(height:24),FilledButton(onPressed:busy?null:save,child:Text(busy?'Guardando…':widget.payment?'Confirmar pago':'Guardar pendiente')),
-    ])));
+    ]))));
   }
 }
