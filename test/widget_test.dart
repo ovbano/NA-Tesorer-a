@@ -1,30 +1,20 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:na_tesoreria/main.dart';
-
-void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+import 'package:na_tesoreria/treasury.dart';
+import 'package:na_tesoreria/report_pdf.dart';
+void main(){
+  test('La aplicación no acepta claves administrativas',(){
+    expect(isPublicKey('sb_secret_test'),false);
+    expect(isPublicKey('sb_publishable_test'),true);
+    String jwt(String role)=>'header.${base64Url.encode(utf8.encode(jsonEncode({'role':role})))}.signature';
+    expect(isPublicKey(jwt('anon')),true);expect(isPublicKey(jwt('service_role')),false);
+  });
+  test('Los importes se convierten a centavos exactos sin redondeo binario',(){expect(cents('3,20'),320);expect(cents('247.90'),24790);expect(cents('0.01'),1);expect(cents('12'),1200);});
+  test('Se rechazan valores negativos y fracciones de centavo',(){expect(()=>cents('-1'),throwsFormatException);expect(()=>cents('1.001'),throwsFormatException);expect(()=>cents('1000001'),throwsFormatException);});
+  test('Un borrador puede tener importe pendiente',(){expect(cents('',optional:true),isNull);expect(()=>cents(''),throwsFormatException);});
+  test('El período siempre usa el primer día del mes',(){expect(period(DateTime(2026,9,29)),'2026-09-01');});
+  test('El informe con movimientos y sin fotos genera un PDF',()async{
+    final data=await reportPdf({'month':'2026-09-01','funds':[{'fund':'general','opening':10000,'income':320,'expense':500,'closing':9820},{'fund':'rent','opening':0,'income':0,'expense':0,'closing':0}],'entries':[{'status':'posted','kind':'income','category':'seventh','entry_date':'2026-09-26','description':'Reunión del grupo','fund':'general','amount_cents':320}],'dues':[]});
+    expect(String.fromCharCodes(data.take(5)),'%PDF-');expect(data.length,greaterThan(1000));
   });
 }

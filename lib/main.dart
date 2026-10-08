@@ -1,123 +1,33 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'treasury.dart';
+import 'supabase_config.dart';
+import 'workspace.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const url=String.fromEnvironment('SUPABASE_URL',defaultValue:publicSupabaseUrl);const key=String.fromEnvironment('SUPABASE_ANON_KEY',defaultValue:publicSupabaseKey);
+  if(url.isEmpty || !isPublicKey(key)){runApp(const MaterialApp(home:Scaffold(body:Center(child:Padding(padding:EdgeInsets.all(24),child:Text('Configura la URL y una clave pública de Supabase (anon o publishable). Nunca uses una clave administrativa. Sigue la guía del proyecto y ejecuta con --dart-define-from-file=config.local.json.'))))));return;}
+  await Supabase.initialize(url:url,anonKey:key);
+  runApp(const TreasuryApp());
 }
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
+class TreasuryApp extends StatelessWidget {
+  const TreasuryApp({super.key});
+  @override Widget build(BuildContext context)=>MaterialApp(title:'Amigos Verdaderos · Tesorería',debugShowCheckedModeBanner:false,locale:const Locale('es','EC'),supportedLocales:const [Locale('es','EC')],localizationsDelegates:GlobalMaterialLocalizations.delegates,theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:const Color(0xff102d50)),scaffoldBackgroundColor:const Color(0xfff0f4f8),inputDecorationTheme:InputDecorationTheme(filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14))),filledButtonTheme:FilledButtonThemeData(style:FilledButton.styleFrom(minimumSize:const Size(48,52)))),home:const AuthGate());
 }
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+class AuthGate extends StatefulWidget { const AuthGate({super.key});@override State<AuthGate> createState()=>_AuthGateState(); }
+class _AuthGateState extends State<AuthGate> {
+  late final TreasuryRepository repo;StreamSubscription<AuthState>? subscription;Future<Json>? access;
+  @override void initState(){super.initState();repo=TreasuryRepository(Supabase.instance.client);access=repo.client.auth.currentSession==null?null:repo.profile();subscription=repo.client.auth.onAuthStateChange.listen((event){if(!mounted)return;if(event.event==AuthChangeEvent.signedOut){setState(()=>access=null);}else if(event.event==AuthChangeEvent.signedIn || event.event==AuthChangeEvent.initialSession){setState(()=>access=repo.client.auth.currentSession==null?null:repo.profile());}});}
+  @override void dispose(){subscription?.cancel();super.dispose();}
+  @override Widget build(BuildContext context){if(access==null)return LoginScreen(repo:repo);return FutureBuilder<Json>(future:access,builder:(context,s){if(s.hasError)return Scaffold(appBar:AppBar(title:const Text('Acceso a Tesorería')),body:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Text(message(s.error!)),const SizedBox(height:20),FilledButton(onPressed:()=>setState(()=>access=repo.profile()),child:const Text('Reintentar')),TextButton(onPressed:()async{await repo.client.auth.signOut(scope:SignOutScope.local);},child:const Text('Volver al inicio de sesión'))])));if(!s.hasData)return const Scaffold(body:Center(child:CircularProgressIndicator()));return Workspace(key:ValueKey(s.data!['id']),repo:repo,profile:s.data!);});}
 }
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
-  }
+class LoginScreen extends StatefulWidget {const LoginScreen({super.key,required this.repo});final TreasuryRepository repo;@override State<LoginScreen> createState()=>_LoginState();}
+class _LoginState extends State<LoginScreen> {
+  final email=TextEditingController(),password=TextEditingController();final form=GlobalKey<FormState>();bool busy=false,visible=false;String? error;
+  @override void dispose(){email.dispose();password.dispose();super.dispose();}
+  Future<void> login()async{if(busy||!form.currentState!.validate())return;setState((){busy=true;error=null;});try{await widget.repo.client.auth.signInWithPassword(email:email.text.trim(),password:password.text);}catch(e){if(mounted)setState(()=>error=message(e));}finally{if(mounted)setState(()=>busy=false);}}
+  @override Widget build(BuildContext context)=>Scaffold(body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:440),child:Form(key:form,child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[const Icon(Icons.account_balance_wallet_rounded,size:68,color:Color(0xff102d50)),const SizedBox(height:20),const Text('Amigos Verdaderos',textAlign:TextAlign.center,style:TextStyle(fontSize:28,fontWeight:FontWeight.bold)),const Text('NARCÓTICOS ANÓNIMOS\nTesorería del grupo',textAlign:TextAlign.center),const SizedBox(height:32),TextFormField(controller:email,keyboardType:TextInputType.emailAddress,autofillHints:const [AutofillHints.username],decoration:const InputDecoration(labelText:'Correo electrónico',prefixIcon:Icon(Icons.mail_outline)),validator:(v)=>(v??'').contains('@')?null:'Escribe tu correo'),const SizedBox(height:16),TextFormField(controller:password,obscureText:!visible,autofillHints:const [AutofillHints.password],decoration:InputDecoration(labelText:'Contraseña',prefixIcon:const Icon(Icons.lock_outline),suffixIcon:IconButton(tooltip:visible?'Ocultar contraseña':'Mostrar contraseña',onPressed:()=>setState(()=>visible=!visible),icon:Icon(visible?Icons.visibility_off:Icons.visibility))),onFieldSubmitted:(_)=>login(),validator:(v)=>(v??'').isNotEmpty?null:'Escribe tu contraseña'),if(error!=null)Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(error!,style:const TextStyle(color:Colors.red))),const SizedBox(height:24),FilledButton(onPressed:busy?null:login,child:Text(busy?'Ingresando…':'Iniciar sesión')),const SizedBox(height:18),const Text('Utiliza la misma cuenta que en la web. Si necesitas acceso, solicítalo al administrador.',textAlign:TextAlign.center)])))))));
 }
