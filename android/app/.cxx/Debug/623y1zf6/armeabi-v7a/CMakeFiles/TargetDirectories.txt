@@ -1,0 +1,2 @@
+C:/Users/Personal/Desktop/tesoreria_na/na_tesoreria/android/app/.cxx/Debug/623y1zf6/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/Personal/Desktop/tesoreria_na/na_tesoreria/android/app/.cxx/Debug/623y1zf6/armeabi-v7a/CMakeFiles/rebuild_cache.dir
