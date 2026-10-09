@@ -10,23 +10,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
-import 'treasury.dart';
+import 'package:na_tesoreria/features/treasury/treasury.dart';
 
-import 'entry_editor.dart';
+import 'package:na_tesoreria/features/treasury/presentation/screens/entry_editor.dart';
 
-import 'activity_editor.dart';
+import 'package:na_tesoreria/features/treasury/presentation/screens/activity_editor.dart';
 
-import 'report_pdf.dart';
+import 'package:na_tesoreria/features/treasury/presentation/reports/report_pdf.dart';
 
-import 'brand.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
 
-import 'treasury_widgets.dart';
+import 'package:na_tesoreria/features/treasury/presentation/widgets/treasury_widgets.dart';
 
-import 'group_logo.dart';
+import 'package:na_tesoreria/shared/widgets/group_logo.dart';
 
-import 'treasury_navigation.dart';
+import 'package:na_tesoreria/features/treasury/presentation/widgets/treasury_navigation.dart';
 
-import 'treasury_workspace_ui.dart';
+import 'package:na_tesoreria/features/treasury/presentation/widgets/treasury_workspace_ui.dart';
 
 import 'package:flutter/services.dart';
 

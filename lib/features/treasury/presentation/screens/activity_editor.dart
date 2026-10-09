@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
-import 'brand.dart';
-import 'group_logo.dart';
-import 'treasury.dart';
-import 'treasury_widgets.dart';
-import 'treasury_dialogs.dart';
-import 'treasury_calendar.dart';
-import 'treasury_header.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
+import 'package:na_tesoreria/shared/widgets/group_logo.dart';
+import 'package:na_tesoreria/features/treasury/treasury.dart';
+import 'package:na_tesoreria/features/treasury/presentation/widgets/treasury_widgets.dart';
+import 'package:na_tesoreria/shared/dialogs/treasury_dialogs.dart';
+import 'package:na_tesoreria/shared/calendar/treasury_calendar.dart';
+import 'package:na_tesoreria/features/treasury/presentation/widgets/treasury_header.dart';
 
 /// Las deudas de actividades no afectan al efectivo hasta registrar un pago.
 class ActivityEditor extends StatefulWidget {

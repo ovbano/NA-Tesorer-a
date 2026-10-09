@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:na_tesoreria/treasury.dart';
-import 'package:na_tesoreria/report_pdf.dart';
+import 'package:na_tesoreria/features/treasury/treasury.dart';
+import 'package:na_tesoreria/features/treasury/presentation/reports/report_pdf.dart';
 void main(){
   test('La aplicación no acepta claves administrativas',(){
     expect(isPublicKey('sb_secret_test'),false);

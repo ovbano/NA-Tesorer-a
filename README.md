@@ -17,7 +17,7 @@ flutter run
 
 Si tienes cambios locales, guárdalos en un commit antes del pull. No uses `git reset --hard` ni borres tu carpeta para actualizar. Si hay varios dispositivos, elige el Android físico o usa `flutter run -d ID_DEL_TELEFONO` con el ID que muestra `flutter devices`.
 
-No necesitas crear nuevamente el proyecto, ejecutar scripts Python ni ingresar otra vez los saldos. El código trae la URL y **clave pública** que ya utiliza la web en `lib/supabase_config.dart`. El usuario entra con sus credenciales actuales; las tablas, fotos y movimientos son los mismos de Supabase.
+No necesitas crear nuevamente el proyecto, ejecutar scripts Python ni ingresar otra vez los saldos. El código trae la URL y **clave pública** que ya utiliza la web en `lib/core/config/supabase_config.dart`. El usuario entra con sus credenciales actuales; las tablas, fotos y movimientos son los mismos de Supabase.
 
 La aplicación rechaza claves administrativas. No coloques `service_role`, `sb_secret_` ni contraseñas de la base en ningún archivo del frontend.
 
@@ -85,3 +85,9 @@ flutter run --dart-define-from-file=config.local.json
 ```
 
 `config.local.json` está excluido de git. La aplicación no recrea tablas ni migra datos.
+
+## Organización del código
+
+`lib/main.dart` conserva el arranque. `app/` configura la aplicación; `core/` agrupa configuración, tema y utilidades; `shared/` reúne logo, calendarios y diálogos; `features/auth/` contiene el acceso, y `features/treasury/` organiza datos, categorías, pantallas, componentes e informes.
+
+Consulta [la estructura y guía de ubicación de archivos](docs/estructura-del-proyecto.md). La reorganización parte del commit «Arreglo manual», conserva sus implementaciones y actualiza también las importaciones de las pruebas. Se verificaron las declaraciones, la sintaxis y las rutas; Flutter debe comprobarse en tu computadora.

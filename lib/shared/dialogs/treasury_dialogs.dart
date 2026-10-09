@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'brand.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
 
 /// Confirmaciones reutilizables sin depender de la lógica de tesorería.
 /// `true` significa salir/descartar; `false`, continuar editando.

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'brand.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
 
 /// Elementos visuales del espacio de trabajo. No modifican datos ni Supabase.
 /// Todas las interfaces públicas se mantienen compatibles con workspace.dart.

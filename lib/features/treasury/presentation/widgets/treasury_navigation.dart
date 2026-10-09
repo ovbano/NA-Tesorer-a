@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'brand.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
 
 /// Visual navigation only. Workspace owns the selected tab and its business logic.
 class _NavDestination {

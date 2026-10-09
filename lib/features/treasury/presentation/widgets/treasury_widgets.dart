@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:na_tesoreria/brand.dart';
-import 'treasury.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
+import 'package:na_tesoreria/features/treasury/treasury.dart';
 
 
 // Shared presentation tokens. No financial or backend operations live here.

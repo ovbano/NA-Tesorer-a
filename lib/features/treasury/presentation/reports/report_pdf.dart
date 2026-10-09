@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'treasury.dart';
+import 'package:na_tesoreria/features/treasury/treasury.dart';
 
 /// Informe mensual listo para impresión A4 y lectura por terceros.
 /// Conserva el contrato usado por Workspace.export().

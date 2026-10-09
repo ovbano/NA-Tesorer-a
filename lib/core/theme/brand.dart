@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'group_logo.dart';
+import 'package:na_tesoreria/shared/widgets/group_logo.dart';
 
 // Identidad institucional. Mantener estos nombres: otros archivos los importan.
 

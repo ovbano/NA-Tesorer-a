@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'brand.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
 
 /// Calendario compartido para movimientos, aportes y actividades.
 /// Conserva los límites de fecha y la apariencia del dispositivo.

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:na_tesoreria/brand.dart';
-import 'package:na_tesoreria/treasury_widgets.dart';
-import 'package:na_tesoreria/treasury.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
+import 'package:na_tesoreria/features/treasury/presentation/widgets/treasury_widgets.dart';
+import 'package:na_tesoreria/features/treasury/treasury.dart';
 
 final sampleActivity = <String,dynamic>{
   'id':'activity-1','name':'Compañero con un nombre y apellido extenso',

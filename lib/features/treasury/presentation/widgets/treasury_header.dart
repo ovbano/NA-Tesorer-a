@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'brand.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
 
 /// Encabezado institucional reutilizable: se adapta al ancho y al texto ampliado.
 class TreasuryHeader extends StatelessWidget implements PreferredSizeWidget {

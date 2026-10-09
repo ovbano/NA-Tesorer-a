@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import 'brand.dart';
+import 'package:na_tesoreria/core/theme/brand.dart';
 
-import 'treasury_widgets.dart';
+import 'package:na_tesoreria/features/treasury/presentation/widgets/treasury_widgets.dart';
 
 import 'package:image_picker/image_picker.dart';
 
@@ -12,9 +12,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:uuid/uuid.dart';
 
-import 'treasury.dart';
-import 'treasury_calendar.dart';
-import 'treasury_dialogs.dart';
+import 'package:na_tesoreria/features/treasury/treasury.dart';
+import 'package:na_tesoreria/shared/calendar/treasury_calendar.dart';
+import 'package:na_tesoreria/shared/dialogs/treasury_dialogs.dart';
 
 class EntryEditor extends StatefulWidget {
 
