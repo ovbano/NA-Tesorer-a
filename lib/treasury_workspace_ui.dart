@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'package:flutter/material.dart';
 import 'brand.dart';
 
@@ -37,11 +38,12 @@ class WorkspaceSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = WorkspacePalette(context);
-    return Container(
+    return PanelMotion(child: Container(
       margin: margin,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: p.canvas,
+        gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[p.canvas,Color.alphaBlend(p.accent.withOpacity(.025),p.canvas)]),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: p.line.withOpacity(p.dark ? .75 : .9)),
         boxShadow: [
@@ -53,7 +55,7 @@ class WorkspaceSurface extends StatelessWidget {
         ],
       ),
       child: Padding(padding: padding, child: child),
-    );
+    ));
   }
 }
 
@@ -135,7 +137,7 @@ class WorkspaceMetricCard extends StatelessWidget {
     final p = WorkspacePalette(context);
     final textScale = MediaQuery.textScalerOf(context).scale(16);
     final amountSize = textScale > 23 ? 27.0 : 33.0;
-    return Container(
+    return PanelMotion(child: Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
       clipBehavior: Clip.antiAlias,
@@ -233,6 +235,11 @@ class WorkspaceMetricCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                MetricExplanation(onDark:featured,text:featured
+                  ? 'Suma del fondo general y del dinero reservado para el local. Las deudas pendientes y los borradores no se suman.'
+                  : label.toLowerCase().contains('local')
+                    ? 'Dinero reservado para pagar el arriendo. No se considera libre para otros gastos.'
+                    : 'Dinero confirmado para los gastos del grupo, según el período consultado.'),
                 if (featured) ...[
                   const SizedBox(height: 16),
                   Container(
@@ -249,7 +256,7 @@ class WorkspaceMetricCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 

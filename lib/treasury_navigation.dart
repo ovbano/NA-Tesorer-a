@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'package:flutter/material.dart';
 import 'brand.dart';
 
@@ -34,19 +35,21 @@ class TreasuryNavigationBar extends StatelessWidget {
     final dark = theme.brightness == Brightness.dark;
     // ignore: unused_local_variable
     final c = theme.colorScheme;
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    final duration = reduceMotion ? Duration.zero : const Duration(milliseconds: 230);
+    final duration = experienceDuration(context,230);
     final panel = dark ? const Color(0xff15223a) : Colors.white;
     final tint = dark ? const Color(0xff283f60) : const Color(0xffe9effb);
     final activeInk = dark ? const Color(0xfff3f6ff) : brandNavy;
     final inactiveInk = dark ? const Color(0xffabb9d0) : const Color(0xff5a6780);
 
     return Material(
-      color: panel,
+      color: Colors.transparent,
       child: Container(
+        margin:const EdgeInsets.fromLTRB(10,0,10,8),
+        clipBehavior:Clip.antiAlias,
         decoration: BoxDecoration(
           color: panel,
-          border: Border(top: BorderSide(color: dark ? Colors.white.withOpacity(.09) : brandNavy.withOpacity(.09))),
+          borderRadius:BorderRadius.circular(27),
+          border: Border.all(color: dark ? brandGold.withOpacity(.20) : brandNavy.withOpacity(.12)),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(dark ? .2 : .07), blurRadius: 24, offset: const Offset(0, -7))],
         ),
         child: SafeArea(
@@ -118,11 +121,8 @@ class _NavButton extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18),
                     border: selected ? Border.all(color: brandGold.withOpacity(.7), width: 1) : null,
                   ),
-                  child: Center(child: Icon(
-                    selected ? destination.activeIcon : destination.icon,
-                    size: 23,
-                    color: selected ? activeInk : inactiveInk,
-                  )),
+                  child: Center(child:AnimatedScale(scale:selected?1.08:1,duration:duration,
+                    child:Icon(selected ? destination.activeIcon : destination.icon,size:23,color:selected?activeInk:inactiveInk))),
                 ),
                 if (showLabel) ...[
                   const SizedBox(height: 5),
@@ -197,3 +197,4 @@ class TreasuryNavigationRail extends StatelessWidget {
     );
   }
 }
+

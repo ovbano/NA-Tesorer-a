@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'package:flutter/material.dart';
 import 'brand.dart';
 
@@ -11,7 +12,7 @@ Future<bool> confirmDiscardChanges(
   String continueLabel = 'Seguir editando',
   String discardLabel = 'Salir sin guardar',
 }) async {
-  final result = await showDialog<bool>(
+  final result = await showExperienceDialog<bool>(
     context: context,
     barrierDismissible: false,
     builder: (dialogContext) {
@@ -72,7 +73,7 @@ Future<bool> confirmDiscardChanges(
 }
 
 Future<bool> confirmLeaveEditor(BuildContext context) async {
-  final answer = await showDialog<bool>(
+  final answer = await showExperienceDialog<bool>(
     context: context,
     builder: (dialogContext) {
       final scheme = Theme.of(dialogContext).colorScheme;
@@ -147,7 +148,7 @@ class _ResponsiveConfirmDialog extends StatelessWidget {
       backgroundColor: scheme.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(30),
         side: BorderSide(color: borderColor),
       ),
       child: ConstrainedBox(
@@ -176,7 +177,7 @@ class _ResponsiveConfirmDialog extends StatelessWidget {
                 textAlign: centerText ? TextAlign.center : TextAlign.start,
                 style: TextStyle(color: scheme.onSurfaceVariant, height: 1.5),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               // Ambas acciones utilizan el ancho disponible, incluso con texto grande.
               SizedBox(
                 width: double.infinity,

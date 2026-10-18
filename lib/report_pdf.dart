@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import 'treasury.dart';
 import 'rent_dues.dart';
+import 'group_logo.dart';
 
 /// Informe mensual listo para impresión A4 y lectura por terceros.
 /// Conserva el contrato usado por Workspace.export().
@@ -15,6 +16,7 @@ Future<Uint8List> reportPdf(
 }) async {
   report = rentReportData(report);
   final document = pw.Document(compress: true);
+  final logo=pw.MemoryImage(groupLogoBytes);
   final funds = rows(report['funds']);
   final entries = rows(report['entries'])
       .where((entry) => entry['status'] == 'posted')
@@ -202,8 +204,10 @@ Future<Uint8List> reportPdf(
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Container(width: 5, height: 36, color: gold),
-              pw.SizedBox(width: 11),
+              pw.Container(width:44,height:44,padding:const pw.EdgeInsets.all(3),
+                decoration:pw.BoxDecoration(border:pw.Border.all(color:gold,width:.8),borderRadius:pw.BorderRadius.circular(22)),
+                child:pw.Image(logo,fit:pw.BoxFit.contain)),
+              pw.SizedBox(width:12),
               pw.Expanded(
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -221,7 +225,7 @@ Future<Uint8List> reportPdf(
             ],
           ),
           pw.SizedBox(height: 12),
-          pw.Container(height: 1.3, color: navy),
+          pw.Row(children:[pw.Expanded(child:pw.Container(height:1.3,color:navy)),pw.Container(height:1.3,width:68,color:gold)]),
         ],
       ),
       footer: (context) => pw.Column(

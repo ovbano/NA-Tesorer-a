@@ -9,34 +9,46 @@ import 'group_logo.dart';
 import 'supabase_config.dart';
 import 'treasury.dart';
 import 'workspace.dart';
+import 'experience.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const url = String.fromEnvironment('SUPABASE_URL', defaultValue: publicSupabaseUrl);
-  const key = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: publicSupabaseKey);
-  if (url.isEmpty || !isPublicKey(key)) {
-    runApp(const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Configura la URL y una clave pública de Supabase (anon o publishable). '
-                'Nunca uses una clave administrativa. Sigue la guía del proyecto y '
-                'ejecuta con --dart-define-from-file=config.local.json.',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ),
-      ),
-    ));
-    return;
+  runApp(const TreasuryStartup());
+}
+
+/// Muestra el estado de arranque antes de inicializar la sesión.
+class TreasuryStartup extends StatefulWidget {
+  const TreasuryStartup({super.key});
+  @override
+  State<TreasuryStartup> createState()=>_TreasuryStartupState();
+}
+class _TreasuryStartupState extends State<TreasuryStartup> {
+  late Future<void> startup;
+  bool initialized=false;
+  @override
+  void initState(){super.initState();startup=initialize();}
+  Future<void> initialize() async {
+    const url=String.fromEnvironment('SUPABASE_URL',defaultValue:publicSupabaseUrl);
+    const key=String.fromEnvironment('SUPABASE_ANON_KEY',defaultValue:publicSupabaseKey);
+    if(url.isEmpty||!isPublicKey(key)) {
+      throw const FormatException('Configura la URL y una clave pública de Supabase. Nunca utilices claves administrativas.');
+    }
+    if(!initialized){await Supabase.initialize(url:url,anonKey:key);initialized=true;}
+    await appearance.load();
   }
-  await Supabase.initialize(url: url, anonKey: key);
-  await appearance.load();
-  runApp(const TreasuryApp());
+  @override
+  Widget build(BuildContext context)=>FutureBuilder<void>(future:startup,builder:(context,snapshot){
+    if(snapshot.connectionState==ConnectionState.done&&!snapshot.hasError)return const TreasuryApp();
+    return MaterialApp(debugShowCheckedModeBanner:false,theme:groupTheme(Brightness.light),
+      darkTheme:groupTheme(Brightness.dark),themeMode:appearance.mode,
+      home:Scaffold(body:SafeArea(child:BrandedBackdrop(child:snapshot.connectionState==ConnectionState.done&&snapshot.hasError
+        ? Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[
+            const Icon(Icons.cloud_off_rounded,size:44,color:brandGold),const SizedBox(height:16),
+            const Text('No pudimos preparar tu espacio',textAlign:TextAlign.center,style:TextStyle(fontSize:23,fontWeight:FontWeight.w800)),
+            const SizedBox(height:10),Text(message(snapshot.error!),textAlign:TextAlign.center),
+            const SizedBox(height:20),FilledButton.icon(onPressed:(){final next=initialize();setState((){startup=next;});},icon:const Icon(Icons.refresh),label:const Text('Volver a intentar')),
+          ])))
+        : const TreasuryLoading(title:'Bienvenido a tu espacio',detail:'Iniciando Tesorería de Amigos Verdaderos…')))));
+  });
 }
 class TreasuryApp extends StatelessWidget {
   const TreasuryApp({super.key});
@@ -226,7 +238,7 @@ class _AuthHeader extends StatelessWidget implements PreferredSizeWidget {
 class _AuthHero extends StatelessWidget {
   const _AuthHero();
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => PanelMotion(child: Container(
         padding: const EdgeInsets.fromLTRB(22, 28, 22, 25),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -244,6 +256,7 @@ class _AuthHero extends StatelessWidget {
             ),
           ],
         ),
+        foregroundDecoration: const ShapeDecoration(shape:RoundedRectangleBorder(borderRadius:BorderRadius.all(Radius.circular(29)),side:BorderSide(color:Color(0x33D9B96D)))),
         child: Column(
           children: [
             // El logotipo permanece exactamente como está implementado.
@@ -268,7 +281,7 @@ class _AuthHero extends StatelessWidget {
                     height: 1.15,
                     color: Colors.white)),
             const SizedBox(height: 10),
-            const Text('Tesorería · Transparencia y servicio',
+            const Text('Unidad · Servicio · Recuperación',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 13, color: Color(0xFFE3EAF8), height: 1.45)),
@@ -283,7 +296,7 @@ class _AuthHero extends StatelessWidget {
                     fontSize: 12)),
           ],
         ),
-      );
+      ));
 }
 class _AuthPanel extends StatelessWidget {
   const _AuthPanel({required this.child});
@@ -291,7 +304,7 @@ class _AuthPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    return PanelMotion(child: Container(
       padding: const EdgeInsets.fromLTRB(21, 23, 21, 23),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -306,7 +319,7 @@ class _AuthPanel extends StatelessWidget {
         ],
       ),
       child: child,
-    );
+    ));
   }
 }
 class _PrimaryAuthButton extends StatelessWidget {
@@ -395,7 +408,7 @@ class _LoginState extends State<LoginScreen> {
       appBar: const _AuthHeader(),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Center(
+        child: BrandedBackdrop(child: Center(
           child: SingleChildScrollView(
             // No cerrar el teclado al reajustar o desplazar el formulario.
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
@@ -554,7 +567,7 @@ class _LoginState extends State<LoginScreen> {
               ),
             ),
           ),
-        ),
+        )),
       ),
     );
   }
@@ -567,11 +580,15 @@ class _AccessStatusScreen extends StatelessWidget {
   final VoidCallback? onSignOut;
   @override
   Widget build(BuildContext context) {
+    if(!isError)return const Scaffold(
+      appBar:_AuthHeader(title:'Preparando tu sesión'),
+      body:SafeArea(child:BrandedBackdrop(child:TreasuryLoading(
+        title:'Verificando tu cuenta',detail:'Comprobando tu sesión y permisos de Tesorería.'))));
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: const _AuthHeader(title: 'Verificación de acceso'),
       body: SafeArea(
-        child: Center(
+        child: BrandedBackdrop(child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: ConstrainedBox(
@@ -627,7 +644,7 @@ class _AccessStatusScreen extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        )),
       ),
     );
   }

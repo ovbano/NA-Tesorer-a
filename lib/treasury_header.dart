@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'package:flutter/material.dart';
 import 'brand.dart';
 
@@ -31,17 +32,15 @@ class TreasuryHeader extends StatelessWidget implements PreferredSizeWidget {
             end: Alignment.bottomRight,
             colors: [Color(0xff071832), brandNavy, Color(0xff1b497d)],
           ),
-          border: Border(bottom: BorderSide(color: Color(0xffb99a5f), width: 1.4)),
+          border: Border(bottom: BorderSide(color: Color(0xffb99a5f), width: 1.0)),
         ),
-        child: Align(
-          alignment: Alignment.bottomRight,
-        ),
+        child:IgnorePointer(child:CustomPaint(painter:BrandPattern(color:brandGold.withOpacity(.12)))),
       ),
       titleSpacing: 12,
       title: Row(children: [
         Material(
           color: Colors.white.withOpacity(.12),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(17),
           child: IconButton(
             tooltip: 'Volver',
             onPressed: busy ? null : () => Navigator.maybePop(context),
@@ -76,7 +75,7 @@ class TreasuryHeader extends StatelessWidget implements PreferredSizeWidget {
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(.12),
               border: Border.all(color: brandGold.withOpacity(.6)),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(17),
             ),
             child: IconTheme(
               data: const IconThemeData(color: Colors.white, size: 22),
@@ -88,3 +87,4 @@ class TreasuryHeader extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
+
