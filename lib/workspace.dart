@@ -1,4 +1,7 @@
 import 'experience.dart';
+import 'ux_components.dart';
+import 'service_forms.dart';
+import 'movement_card.dart';
 import 'dart:typed_data';
 
 import 'dart:ui' as ui;
@@ -25,7 +28,6 @@ import 'brand.dart';
 
 import 'treasury_widgets.dart';
 
-import 'group_logo.dart';
 
 import 'treasury_navigation.dart';
 
@@ -52,6 +54,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
   String duesSearch='',duesFilter='all',activitySearch='',activityFilter='all';
 
   final duesSearchController = TextEditingController();
+  final movementSearchController = TextEditingController();
 
   final activitySearchController = TextEditingController();
 
@@ -61,7 +64,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);appearance.addListener(appearanceChanged);reload();}
 
-  @override void dispose(){generation++;duesSearchController.dispose();activitySearchController.dispose();appearance.removeListener(appearanceChanged);WidgetsBinding.instance.removeObserver(this);super.dispose();}
+  @override void dispose(){generation++;movementSearchController.dispose();duesSearchController.dispose();activitySearchController.dispose();appearance.removeListener(appearanceChanged);WidgetsBinding.instance.removeObserver(this);super.dispose();}
 
   void appearanceChanged(){if(mounted)setState((){});}
 
@@ -121,32 +124,18 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   }
 
-  Future<String?> ask(String title,String label,{bool password=false}) async {
-
-    final controller=TextEditingController();
-
-    final value=await showExperienceDialog<String>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:Text(title),content:TextField(controller:controller,obscureText:password,decoration:InputDecoration(labelText:password?'Contraseña':null,hintText:password?null:label,helperText:password?label:null,helperMaxLines:3),maxLines:password?1:3),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,controller.text),child:const Text('Continuar'))]));
-
-    // Route disposal follows its reverse animation; avoid disposing a focused controller early.
-
-    await Future<void>.delayed(const Duration(milliseconds:300));controller.dispose();return value;
-
-  }
+  Future<String?> ask(String title,String label,{bool password=false})=>
+    showServiceForm<String>(context,TextRequestForm(title:title,description:label,password:password));
 
   Future<void> account(String action)async{
 
     if(action=='logout'){await task(()async{await widget.repo.client.auth.signOut(scope:SignOutScope.local);});}
 
     if(action=='password'){
-
-      final value=await ask('Cambiar contraseña','Nueva contraseña (mínimo 12 caracteres)',password:true);if(value==null)return;
-
-      if(value.length<12){notify('Utiliza al menos 12 caracteres.');return;}
-
-      final confirmation=await ask('Confirmar contraseña','Repite la nueva contraseña',password:true);if(confirmation!=value){notify('Las contraseñas no coinciden.');return;}
-
-      await task(()async{await widget.repo.client.auth.updateUser(UserAttributes(password:value));notify('Contraseña actualizada.');});
-
+      final saved=await showServiceForm<bool>(context,PasswordForm(onSave:(value)async{
+        await widget.repo.client.auth.updateUser(UserAttributes(password:value));
+      }));
+      if(saved==true)notify('Contraseña actualizada.');
     }
 
     if(action=='admin'){await launchUrl(Uri.parse('https://narcoticos-anonimos-azure.vercel.app/admin/'),mode:LaunchMode.externalApplication);}
@@ -156,245 +145,18 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
   }
 
   Future<void> initialFunds() async {
-
-    final general=TextEditingController(text:settings==null?'':((settings!['opening_general'] as num)/100).toStringAsFixed(2));
-
-    final local=TextEditingController(text:settings==null?'':((settings!['opening_rent'] as num)/100).toStringAsFixed(2));
-
-    final note=TextEditingController(text:settings?['note']??''),reason=TextEditingController();DateTime start=settings==null?month:DateTime.parse(settings!['start_month']);String? feedback;bool saving=false;
-
-    await showExperienceDialog<void>(context:context,barrierDismissible:false,builder:(c)=>StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(scrollable:true,title:Text(settings==null?'Registrar fondos iniciales':'Corregir fondos iniciales'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('Registra dinero físico verificado. General: gastos del grupo. Local: dinero reservado para arriendo. No incluyas deudas pendientes.'),TextButton(onPressed:saving?null:()async{final d=await showDatePicker(context:c,initialDate:start,firstDate:DateTime(2013),lastDate:today());if(d!=null)set(()=>start=DateTime(d.year,d.month));},child:Text('Mes de inicio: ${period(start).substring(0,7)}')),TextField(controller:general,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Gastos del grupo · USD')),const SizedBox(height:12),TextField(controller:local,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Apartado para el local · USD')),const SizedBox(height:12),TextField(controller:note,decoration:const InputDecoration(labelText:'Nota')),if(settings!=null)...[const SizedBox(height:12),const Text('La corrección recalcula los saldos y reabre meses cerrados. Revisa después los informes.'),TextField(controller:reason,decoration:const InputDecoration(labelText:'Motivo de la corrección'))],if(feedback!=null)Text(feedback!,style:const TextStyle(color:Colors.red))])),actions:[TextButton(onPressed:saving?null:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:saving?null:()async{try{final a=cents(general.text),b=cents(local.text);if(settings!=null&&reason.text.trim().length<5)throw const FormatException('Explica el motivo de la corrección.');set(()=>saving=true);await widget.repo.command(settings==null?'setup':'initial_update',{'start_month':period(start),'opening_general':a,'opening_rent':b,'note':note.text.trim(),'reason':reason.text.trim()});if(c.mounted)Navigator.pop(c);await reload();}catch(e){if(c.mounted)set((){feedback=message(e);saving=false;});}},child:Text(saving?'Guardando…':'Guardar'))]))));
-
-    await Future<void>.delayed(const Duration(milliseconds:300));for(final controller in [general,local,note,reason]){controller.dispose();}
-
+    if(!writable||working)return;
+    final saved=await showServiceForm<bool>(context,InitialFundsForm(settings:settings,month:month,onSave:(payload)async{
+      await widget.repo.command(settings==null?'setup':'initial_update',payload);
+    }));
+    if(saved==true&&mounted){notify('Fondos iniciales guardados.');await reload();}
   }
 
-  
   Future<void> export() async {
     if (report?['configured'] != true || working) return;
 
     // 1. Seleccionar cómo se generará el informe.
-    final includePhotos = await showExperienceDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        final theme = Theme.of(dialogContext);
-        final scheme = theme.colorScheme;
-        final dark = theme.brightness == Brightness.dark;
-
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 20,
-          ),
-          backgroundColor: scheme.surface,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(26),
-            side: BorderSide(
-              color: scheme.outlineVariant,
-            ),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF071D49),
-                          Color(0xFF174684),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.picture_as_pdf_rounded,
-                          color: Color(0xFFD9B96D),
-                          size: 32,
-                        ),
-                        SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            'INFORME DE TESORERÍA',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: .7,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Text(
-                    'Exportar informe mensual',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-
-                  const SizedBox(height: 7),
-
-                  Text(
-                    monthLabel(month),
-                    style: TextStyle(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Text(
-                    'El informe presentará los ingresos y egresos '
-                    'por separado, junto con el resumen financiero '
-                    'y los aportes correspondientes al período.',
-                    style: TextStyle(
-                      color: scheme.onSurfaceVariant,
-                      height: 1.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Opción 1: informe sin fotografías.
-                  OutlinedButton(
-                    onPressed: () =>
-                        Navigator.of(dialogContext).pop(false),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: scheme.onSurface,
-                      side: BorderSide(
-                        color: scheme.outlineVariant,
-                      ),
-                      backgroundColor: dark
-                          ? const Color(0xFF1C2C46)
-                          : const Color(0xFFF3F6FB),
-                      padding: const EdgeInsets.all(16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.description_outlined,
-                          color: scheme.primary,
-                          size: 26,
-                        ),
-                        const SizedBox(width: 13),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Sin fotografías',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'PDF más ligero y rápido de compartir.',
-                                softWrap: true,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 11),
-
-                  // Opción 2: informe con fotografías.
-                  FilledButton(
-                    onPressed: () =>
-                        Navigator.of(dialogContext).pop(true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF071D49),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.all(16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.photo_library_outlined,
-                          color: Color(0xFFD9B96D),
-                          size: 26,
-                        ),
-                        SizedBox(width: 13),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Con fotografías',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Incluye comprobantes fotográficos disponibles.',
-                                softWrap: true,
-                                style: TextStyle(
-                                  color: Color(0xFFDFE8F8),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.of(dialogContext).pop(),
-                    child: const Text('Cancelar'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    final includePhotos=await showServiceForm<bool>(context,ReportOptionsForm(month:month));
 
     if (includePhotos == null || !mounted) return;
 
@@ -724,27 +486,22 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
   }
 
   Future<void> closeMonth()async{
-
-    if(!writable||report?['configured']!=true)return;
-
-    if(closed){final reason=await ask('Reabrir mes','Motivo: también se reabrirán los meses posteriores');if(reason==null)return;await task(()async{await widget.repo.command('reopen',{'month':period(month),'reason':reason});await reload();});return;}
-
-    final input=await ask('Cerrar mes','Dinero total contado físicamente · USD');if(input==null)return;
-
-    try{
-
-      final counted=cents(input)!;final fresh=await widget.repo.report(month);final total=rows(fresh['funds']).fold<num>(0,(n,f)=>n+(f['closing'] as num));
-
+    if(!writable||working||report?['configured']!=true)return;
+    if(closed){
+      final saved=await showServiceForm<bool>(context,ReasonActionForm(
+        title:'Reabrir ${monthLabel(month)}',description:'También se reabrirán los meses posteriores. Conserva un motivo claro para la auditoría.',
+        onSave:(reason)async{await widget.repo.command('reopen',{'month':period(month),'reason':reason});}));
+      if(saved==true&&mounted){notify('Período reabierto.');await reload();}
+      return;
+    }
+    await task(()async{
+      final fresh=await widget.repo.report(month);
       if(!mounted)return;
-
-      final confirmed=await showExperienceDialog<bool>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:const Text('Confirmar cierre'),content:Text('Saldo calculado: ${money(total)}\nDinero contado: ${money(counted)}\nDiferencia: ${money(counted-total)}'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Confirmar'))]));
-
-      if(confirmed!=true)return;final note=await ask('Nota del cierre','Explica diferencias o deja una observación');if(note==null)return;
-
-      await task(()async{await widget.repo.command('close',{'month':period(month),'counted_cents':counted,'note':note.trim()});await reload();});
-
-    }catch(e){notify(message(e));}
-
+      final saved=await showServiceForm<bool>(context,CloseMonthForm(month:month,report:fresh,onSave:(payload)async{
+        await widget.repo.command('close',payload);
+      }));
+      if(saved==true&&mounted){notify('Mes cerrado. El informe quedó conservado.');await reload();}
+    });
   }
 
   Widget metric(String label, Object? amount, {bool dark=false}) => WorkspaceMetricCard(
@@ -780,92 +537,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
     );
   }
 
-  Widget entryTile(Json e) {
-    final p = WorkspacePalette(context);
-    final income = e['kind'] == 'income';
-    final tone = _movementColor(income, p.dark);
-    final tint = _movementTint(income, p.dark);
-    final state = e['status'] == 'draft' ? 'Borrador'
-        : e['status'] == 'void' ? 'Anulado'
-        : e['fund'] == 'rent' ? 'Fondo local' : 'Fondo general';
-    final description = e['description']?.toString().trim() ?? '';
-    final category = categories[e['category']] ?? 'Otro movimiento';
-
-    return WorkspaceSurface(
-      padding: EdgeInsets.zero,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => detail(e),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(15, 16, 13, 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 49, height: 49,
-                  decoration: BoxDecoration(
-                    color: tint,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: tone.withOpacity(.26)),
-                  ),
-                  child: Icon(
-                    income ? Icons.south_west_rounded : Icons.north_east_rounded,
-                    color: tone, size: 26,
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 8, runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          _movementTag(income ? 'INGRESO' : 'EGRESO', income, p.dark),
-                          Text(state, style: TextStyle(
-                            color: p.muted, fontSize: 12, fontWeight: FontWeight.w600,
-                          )),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        description.isEmpty ? 'Movimiento por completar' : description,
-                        style: TextStyle(
-                          fontSize: 16, height: 1.35,
-                          fontWeight: FontWeight.w800, color: p.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text('${e['entry_date']} · $category',
-                        style: TextStyle(color: p.muted, height: 1.4, fontSize: 12.5),
-                      ),
-                      const SizedBox(height: 12),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${income ? '+' : '−'} ${money(e['amount_cents'])}',
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.w900,
-                            letterSpacing: -.4, color: tone,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded, size: 19, color: p.muted),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget entryTile(Json entry)=>MovementCard(entry:entry,onTap:()=>detail(entry));
 
   // Tarjetas del balance: cada importe ocupa el ancho que le corresponde.
   Widget _balanceCaption(String label, num amount, String type) {
@@ -986,7 +658,8 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
     return [
 
-      const GroupBanner(),
+      AdaptiveIntro(title:'Nuestro fondo, con claridad',subtitle:'${monthLabel(month)} · Revisa el dinero disponible y los movimientos del grupo.',icon:Icons.account_balance_wallet_outlined,showLogo:true),
+      const SizedBox(height:18),
 
       const WorkspaceHeadline(title:'Nuestro fondo',subtitle:'Un registro claro al servicio del grupo.',icon:Icons.account_balance_wallet_outlined),
 
@@ -1029,8 +702,10 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
   }
 
   List<Widget> movementView() {
-
-    final filtered=rows(report?['entries']).reversed.where((entry)=>(kind=='all'||entry['kind']==kind)&&'${entry['description']} ${entry['member_name']} ${categories[entry['category']]}'.toLowerCase().contains(query)).toList();
+    bool matches(Json entry)=>(kind=='all'||entry['kind']==kind)&&
+      _searchKey('${entry['description']} ${entry['member_name']} ${categories[entry['category']]} ${entry['entry_date']}').contains(_searchKey(query));
+    final filtered=rows(report?['entries']).reversed.where((entry)=>entry['status']!='draft'&&matches(entry)).toList();
+    final filteredDrafts=drafts.where(matches).toList();
 
     return [
 
@@ -1040,21 +715,28 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
       WorkspaceSearchPanel(
 
-        hint:'Buscar detalle o compañero', onChanged:(value)=>setState(()=>query=value.toLowerCase()),
+        controller:movementSearchController,onClear:(){movementSearchController.clear();setState(()=>query='');},
+        hint:'Detalle, compañero o fecha', onChanged:(value)=>setState(()=>query=value.toLowerCase()),
 
         filters:const {'all':'Todos','income':'Ingresos','expense':'Egresos'},
 
         selected:kind, onFilter:(value)=>setState(()=>kind=value),
 
-        countLabel:'${filtered.length} movimientos encontrados',
+        countLabel:'${filtered.length} movimientos · ${filteredDrafts.length} borradores',
 
       ),
 
-      if(filtered.isEmpty)const EmptyLedger('Sin movimientos para mostrar','Cambia el filtro o selecciona otro mes.'),
+      UxSection(title:'En esta búsqueda',icon:Icons.analytics_outlined,description:'Solo movimientos confirmados. Los borradores y anulados no se suman.',child:FactsGrid(facts:[
+        UxFact('Ingresos',money(filtered.where((e)=>e['status']=='posted'&&e['kind']=='income').fold<int>(0,(sum,e)=>sum+((e['amount_cents'] as num?)?.toInt()??0)))),
+        UxFact('Egresos',money(filtered.where((e)=>e['status']=='posted'&&e['kind']=='expense').fold<int>(0,(sum,e)=>sum+((e['amount_cents'] as num?)?.toInt()??0)))),
+      ])),
+
+      if(filtered.isEmpty&&filteredDrafts.isEmpty)const EmptyLedger('Sin movimientos para mostrar','Cambia el filtro o selecciona otro mes.'),
+      if(filtered.isEmpty&&filteredDrafts.isNotEmpty)const FieldNote('La búsqueda encontró borradores por completar. Todavía no afectan los saldos.'),
 
       ...filtered.map(entryTile),
 
-      if(drafts.isNotEmpty)...[const SectionTitle('Borradores',subtitle:'Registros por completar. No afectan el saldo.',icon:Icons.edit_note),...drafts.map(entryTile)],
+      if(filteredDrafts.isNotEmpty)...[const SectionTitle('Borradores guardados',subtitle:'Por completar; pueden corresponder a otro período. No afectan el saldo.',icon:Icons.edit_note),...filteredDrafts.map(entryTile)],
 
     ];
 
@@ -1130,45 +812,13 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
     if(saved==true&&mounted){notify('Aporte guardado. El saldo se actualiza según el mes asignado.');await reload();}
   }
 
-  Future<void> configureRent(Json person) async {
+  Future<void> configureRent(Json person)async{
     if(!writable||working||settings==null)return;
-    DateTime? start;
-    final amount=TextEditingController(text:'12.00');
-    String? feedback;
-    bool saving=false;
-    await showExperienceDialog<void>(context:context,barrierDismissible:false,builder:(dialogContext)=>
-      StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(
-        scrollable:true,title:Text('Cuota de ${person['name']}'),
-        content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text('Confirma desde qué mes corresponde el aporte. Esto genera obligaciones informativas; no agrega ingresos ni dinero disponible.'),
-          const SizedBox(height:12),
-          OutlinedButton.icon(onPressed:saving?null:()async{
-            final selected=await showModalBottomSheet<DateTime>(context:c,isScrollControlled:true,useSafeArea:true,
-              builder:(_)=>MonthSheet(selected:start??month));
-            if(selected!=null&&c.mounted)set(()=>start=selected);
-          },icon:const Icon(Icons.calendar_month),label:Text(start==null?'Elegir mes de inicio':monthLabel(start!))),
-          const SizedBox(height:12),
-          TextField(controller:amount,enabled:!saving,keyboardType:const TextInputType.numberWithOptions(decimal:true),
-            decoration:const InputDecoration(labelText:'Cuota mensual · USD')),
-          if(feedback!=null) Text(feedback!,style:TextStyle(color:Theme.of(c).colorScheme.error)),
-        ]),
-        actions:[TextButton(onPressed:saving?null:()=>Navigator.pop(c),child:const Text('Cancelar')),
-          FilledButton(onPressed:saving?null:()async{
-            try{
-              if(start==null)throw const FormatException('Selecciona el mes de inicio.');
-              if(period(start!).compareTo(settings!['start_month'] as String)<0)throw const FormatException('El inicio no puede ser anterior al inicio de Tesorería.');
-              final value=cents(amount.text);
-              if(value==null||value<=0)throw const FormatException('Indica una cuota mayor que cero.');
-              set(()=>saving=true);
-              await widget.repo.profile();
-              await widget.repo.command('member',{'source_anniversary_id':person['source_id'],
-                'name':person['name'],'start_month':period(start!),'end_month':null,'monthly_cents':value});
-              if(c.mounted)Navigator.pop(c);
-              await reload();
-            }catch(e){if(c.mounted)set((){feedback=message(e);saving=false;});}
-          },child:Text(saving?'Guardando…':'Guardar'))],
-      ))));
-    await Future<void>.delayed(const Duration(milliseconds:300));amount.dispose();
+    final saved=await showServiceForm<bool>(context,RentSetupForm(person:person,settings:settings!,month:month,onSave:(payload)async{
+      await widget.repo.profile();
+      await widget.repo.command('member',payload);
+    }));
+    if(saved==true&&mounted){notify('Inicio y cuota guardados.');await reload();}
   }
 
   List<Widget> duesView() {
@@ -1208,15 +858,17 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
           icon: Icons.home_outlined),
 
-      LedgerPanel(child: Wrap(spacing: 28, runSpacing: 18, children: [
-
-        MoneyCaption('Deuda anterior', total['previous_pending']),
-        MoneyCaption('Pendiente del mes', total['current_pending']),
-        MoneyCaption('Total calculado por cobrar', total['total_pending']),
-        MoneyCaption('Cuotas del mes', rows(report?['dues']).fold<int>(0,(sum,d)=>sum+rentAmount(d,'expected'))),
-        MoneyCaption('Recibido para el mes', rows(report?['dues']).fold<int>(0,(sum,d)=>sum+rentAmount(d,'paid'))),
-
-      ])),
+      UxSection(title:'Panorama del compromiso',description:'Deuda calculada de los compañeros con inicio confirmado.',icon:Icons.home_work_outlined,
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          FactsGrid(facts:[UxFact('Total por cobrar',money(total['total_pending'])),UxFact('Meses anteriores',money(total['previous_pending'])),UxFact('Mes consultado',money(total['current_pending']))]),
+          const SizedBox(height:10),ExpansionTile(key:const PageStorageKey<String>('rent-month-summary'),tilePadding:EdgeInsets.zero,
+            title:const Text('Ver cuotas y recaudación del mes',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700)),children:[
+              FactsGrid(facts:[
+                UxFact('Cuotas del mes',money(rows(report?['dues']).fold<int>(0,(sum,d)=>sum+rentAmount(d,'expected')))),
+                UxFact('Recibido para este mes',money(rows(report?['dues']).fold<int>(0,(sum,d)=>sum+rentAmount(d,'paid')))),
+              ]),
+            ]),
+        ])),
 
       const InfoNote('La deuda es informativa y no suma dinero en caja. Los abonos se descuentan del mes asignado; el dinero ingresa en su fecha real de recepción.'),
       if (dues.any((d)=>d['tracking']=='unconfigured'))
@@ -1285,23 +937,8 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
           icon: Icons.volunteer_activism_outlined),
 
-      WorkspaceSurface(child: Column(
-
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-
-          MoneyCaption('Total por cobrar', pendingActivities, emphasis: true),
-
-          const SizedBox(height: 12),
-
-          const Text('Este valor es informativo. Solo los pagos recibidos se incorporan al fondo general.',
-
-              style: TextStyle(height: 1.5)),
-
-        ],
-
-      )),
+      UxSection(title:'Compromisos de actividades',description:'Solo los pagos recibidos se incorporan al fondo general.',icon:Icons.volunteer_activism_outlined,
+        child:FactsGrid(facts:[UxFact('Total por cobrar',money(pendingActivities)),UxFact('Compromisos registrados','${activities.length}') ])),
 
       if (writable) ...[
 
@@ -1379,33 +1016,61 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   Future<void> audit()async{await task(()async{final data=await widget.repo.client.from('treasury_audit').select('action,actor_name,happened_at').order('id',ascending:false).limit(50);if(!mounted)return;await showModalBottomSheet<void>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>SizedBox(height:MediaQuery.sizeOf(c).height*.8,child:ListView(padding:const EdgeInsets.all(20),children:[SheetHeading(title:'Historial de cambios',subtitle:'Últimos 50 registros de auditoría',icon:Icons.history_rounded,onClose:()=>Navigator.pop(c)),const SizedBox(height:16),...data.map((a)=>ListTile(leading:const Icon(Icons.history),title:Text(a['actor_name']??'Usuario'),subtitle:Text('${a['action']} · ${a['happened_at']}')))])));});}
 
-  List<Widget> more()=>[
+  List<Widget> more(){
+    final name=profile['display_name']??widget.repo.client.auth.currentUser?.email??'Mi cuenta';
+    final role=profile['role']=='admin'?'Administrador':profile['role']=='auditor'?'Auditor':'Tesorería';
+    return [
+      AdaptiveIntro(title:'Tu espacio',subtitle:'$name · $role',icon:Icons.person_outline_rounded,showLogo:true,
+        eyebrow:'TU CUENTA · AMIGOS VERDADEROS'),
+      const SizedBox(height:18),
+      const WorkspaceThemeSelector(),
+      ServiceOptions(title:'Cuidado del período',description:monthLabel(month),options:[
+        if(writable&&report?['configured']==true) ServiceOption(closed?'Reabrir mes con motivo':'Revisar y cerrar el mes',
+          closed?'Reabre este período y los posteriores para corregir registros.':'Compara el saldo con el dinero contado y guarda el cierre.',
+          Icons.lock_clock_outlined,working?null:closeMonth),
+        if(writable) ServiceOption('Fondos iniciales','Consulta o corrige el punto de partida de ambos fondos.',Icons.account_balance_wallet_outlined,working?null:initialFunds),
+        ServiceOption('Historial de cambios','Identifica quién realizó cada actualización.',Icons.history_rounded,working?null:audit),
+      ]),
+      ServiceOptions(title:'Cuenta y seguridad',options:[
+        ServiceOption('Cambiar contraseña','Actualízala con confirmación en una sola ventana.',Icons.lock_reset_rounded,working?null:()=>account('password')),
+        if(profile['role']=='admin') ServiceOption('Administrar usuarios','Abre el panel de accesos del grupo en la web.',Icons.manage_accounts_outlined,working?null:()=>account('admin')),
+        ServiceOption('Cerrar sesión','Salir de esta cuenta en este dispositivo.',Icons.logout_rounded,working?null:()=>account('logout'),danger:true),
+      ]),
+      ServiceOptions(title:'Herramientas del servicio',options:[
+        ServiceOption('Abrir Tesorería web','Continúa en la plataforma web del grupo.',Icons.open_in_browser_rounded,
+          ()=>launchUrl(Uri.parse('https://narcoticos-anonimos-azure.vercel.app/tesoreria/'),mode:LaunchMode.externalApplication)),
+      ]),
+      UxSection(title:'Guía rápida',icon:Icons.help_outline_rounded,child:ExpansionTile(
+        key:const PageStorageKey<String>('service-guide-expanded'),tilePadding:EdgeInsets.zero,
+        title:const Text('Cómo llevar el registro'),children:const [
+          FieldNote('General: séptimas y otros ingresos para gastos del grupo. Local: dinero reservado para arriendo.'),
+          FieldNote('Un borrador permite completar un registro después; no aumenta ni disminuye el saldo.'),
+          FieldNote('Confirmar incorpora el movimiento. Corregir conserva el historial. Los pendientes no son dinero en caja.'),
+        ])),
+      const Padding(padding:EdgeInsets.symmetric(vertical:16),child:Text('Un día a la vez, juntos.\nAmigos Verdaderos · Narcóticos Anónimos',textAlign:TextAlign.center,style:TextStyle(height:1.6,fontSize:12))),
+    ];
+  }
 
-    const GroupBanner(),
-
-    const WorkspaceHeadline(title:'Tu espacio',subtitle:'Preferencias, herramientas y cuidado del servicio.',icon:Icons.tune_rounded),
-
-    const WorkspaceThemeSelector(),
-
-    const ActionCard(icon:Icons.help_outline,title:'Cómo utilizar Tesorería',subtitle:'General: séptimas y otros ingresos. Local: aportes para arriendo. Borrador: registro por completar, no suma dinero. Confirmar: incorpora el movimiento al saldo. Corregir: conserva el historial.'),
-
-    if(writable&&report?['configured']==true)ActionCard(icon:Icons.lock_clock,title:closed?'Reabrir mes con motivo':'Cerrar mes y verificar dinero',subtitle:closed?'Revisa el motivo antes de modificar un mes cerrado.':'Compara el saldo con el dinero contado en caja.',onTap:working?null:closeMonth),
-
-    ActionCard(icon:Icons.history,title:'Historial de cambios',subtitle:'Consulta quién realizó cada actualización.',onTap:working?null:audit),
-
-    ActionCard(icon:Icons.language,title:'Abrir Tesorería web',subtitle:'Accede a la plataforma del grupo.',onTap:()=>launchUrl(Uri.parse('https://narcoticos-anonimos-azure.vercel.app/tesoreria/'),mode:LaunchMode.externalApplication)),
-
-    if(writable)ActionCard(icon:Icons.account_balance,title:'Corregir fondos iniciales',subtitle:'Requiere un motivo y recalcula los períodos.',onTap:working?null:initialFunds),
-
-    if(profile['role']=='admin')ActionCard(icon:Icons.manage_accounts,title:'Administrar usuarios',subtitle:'Abre el panel administrativo del grupo.',onTap:()=>account('admin')),
-
-    ActionCard(icon:Icons.password,title:'Cambiar contraseña',onTap:working?null:()=>account('password')),
-
-    ActionCard(icon:Icons.logout,title:'Cerrar sesión',onTap:working?null:()=>account('logout')),
-
-    const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Un día a la vez, juntos.\nAmigos Verdaderos · Narcóticos Anónimos',textAlign:TextAlign.center,style:TextStyle(height:1.6,fontSize:13))),
-
-  ];
+  Future<void> openAccount()async{
+    if(working)return;
+    final name=profile['display_name']??widget.repo.client.auth.currentUser?.email??'Mi cuenta';
+    final email=widget.repo.client.auth.currentUser?.email??'';
+    final role=profile['role']=='admin'?'Administrador':profile['role']=='auditor'?'Auditor':'Tesorería';
+    final selected=await showModalBottomSheet<String>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>
+      SizedBox(height:MediaQuery.sizeOf(c).height*.85,child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(18,4,18,24),child:Column(children:[
+        AdaptiveIntro(title:'$name',subtitle:'$email · $role',icon:Icons.person_outline_rounded,showLogo:true,eyebrow:'TU CUENTA'),
+        const SizedBox(height:16),ServiceOptions(title:'Accesos rápidos',options:[
+          ServiceOption('Tu espacio','Preferencias y herramientas de tu servicio.',Icons.dashboard_customize_outlined,()=>Navigator.pop(c,'space')),
+          ServiceOption('Actualizar información','Vuelve a consultar los datos del período.',Icons.refresh_rounded,loading?null:()=>Navigator.pop(c,'refresh')),
+          if(writable) ServiceOption('Fondos iniciales','Revisa el punto de partida del grupo.',Icons.account_balance_wallet_outlined,()=>Navigator.pop(c,'initial')),
+          ServiceOption('Cambiar contraseña','Cuida la credencial de tu cuenta.',Icons.lock_reset_rounded,()=>Navigator.pop(c,'password')),
+          ServiceOption('Cerrar sesión','Salir de este dispositivo.',Icons.logout_rounded,()=>Navigator.pop(c,'logout'),danger:true),
+        ]),
+        TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Volver')),
+      ]))));
+    if(selected==null||!mounted)return;
+    if(selected=='space'){selectSection(3);}else if(selected=='refresh'){await reload();}else{await account(selected);}
+  }
 
   void selectSection(int index) {
 
@@ -1417,7 +1082,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   }
 
-  List<Widget> content() => error!=null ? [const WorkspaceHeadline(title:'No pudimos cargar este período',icon:Icons.cloud_off_rounded),InfoNote(error!),WorkspaceActionButton(onPressed:reload,icon:Icons.refresh_rounded,title:'Volver a intentar')]
+  List<Widget> content() => section==3?more():error!=null ? [const WorkspaceHeadline(title:'No pudimos cargar este período',icon:Icons.cloud_off_rounded),InfoNote(error!),WorkspaceActionButton(onPressed:reload,icon:Icons.refresh_rounded,title:'Volver a intentar')]
 
     : report?['configured']!=true ? [const GroupBanner(),const SizedBox(height:24),Text(settings==null?'Registra los fondos iniciales para comenzar.':'Este mes es anterior al inicio de Tesorería.'),if(writable&&settings==null)FilledButton(onPressed:initialFunds,child:const Text('Registrar fondos'))]
 
@@ -1441,472 +1106,20 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
     return Scaffold(
 
-    appBar: AppBar(
-
-      automaticallyImplyLeading: false,
-
-      toolbarHeight: MediaQuery.textScalerOf(context).scale(20) * 1.3 + 54,
-
-      backgroundColor: brandNavy,
-
-      foregroundColor: Colors.white,
-
-      surfaceTintColor: Colors.transparent,
-
-      elevation: 0,
-
-      scrolledUnderElevation: 0,
-
-      titleSpacing: 0,
-
-      flexibleSpace: Container(
-
-        decoration: const BoxDecoration(
-
-          gradient: LinearGradient(
-
-            begin: Alignment.topLeft,
-
-            end: Alignment.bottomRight,
-
-            colors: [
-
-              Color(0xFF071D49),
-
-              Color(0xFF123875),
-
-              Color(0xFF274F7F),
-
-            ],
-
-          ),
-
-          border: Border(
-
-            bottom: BorderSide(
-
-              color: brandGold,
-
-              width: 1.2,
-
-            ),
-
-          ),
-
-        ),
-
-      ),
-
-      leadingWidth: MediaQuery.sizeOf(context).width < 360 ? 58 : 70,
-
-      leading: Padding(
-
-        padding: const EdgeInsets.fromLTRB(11, 8, 3, 8),
-
-        child: Container(
-
-          alignment: Alignment.center,
-
-          decoration: BoxDecoration(
-
-            color: Colors.white.withOpacity(0.08),
-
-            borderRadius: BorderRadius.circular(15),
-
-            border: Border.all(
-
-              color: brandGold.withOpacity(0.45),
-
-              width: 1,
-
-            ),
-
-          ),
-
-          child: const GroupLogo(
-
-            size: 44,
-
-            variant: GroupLogoVariant.clean,
-
-          ),
-
-        ),
-
-      ),
-
-      title: Padding(
-
-        padding: const EdgeInsets.only(left: 9),
-
-        child: Column(
-
-          mainAxisSize: MainAxisSize.min,
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-
-            const Text(
-
-              'TESORERÍA',
-
-              maxLines: 1,
-
-              overflow: TextOverflow.ellipsis,
-
-              style: TextStyle(
-
-                color: Colors.white,
-
-                fontSize: 20,
-
-                fontWeight: FontWeight.w900,
-
-                letterSpacing: 1.1,
-
-                height: 1.2,
-
-              ),
-
-            ),
-
-            const SizedBox(height: 4),
-
-            Text(
-
-              '$name',
-
-              maxLines: 1,
-
-              overflow: TextOverflow.ellipsis,
-
-              style: const TextStyle(
-
-                color: Color(0xFFE0E9FA),
-
-                fontSize: 12,
-
-                fontWeight: FontWeight.w500,
-
-                height: 1.3,
-
-              ),
-
-            ),
-
-          ],
-
-        ),
-
-      ),
-
-      actions: [
-
-        // Selector de tema
-
-        const IconTheme(
-
-          data: IconThemeData(color: Colors.white),
-
-          child: ThemeButton(),
-
-        ),
-
-        // Actualización visible en dispositivos con espacio suficiente
-
-        if (MediaQuery.sizeOf(context).width >= 430)
-
-          IconButton(
-
-            tooltip: 'Actualizar información',
-
-            onPressed: loading || working ? null : reload,
-
-            icon: const Icon(
-
-              Icons.refresh_rounded,
-
-              color: Colors.white,
-
-            ),
-
-          ),
-
-        // Menú de perfil y opciones adicionales
-
-        PopupMenuButton<String>(
-
-          tooltip: 'Mi perfil',
-
-          position: PopupMenuPosition.under,
-
-          offset: const Offset(0, 8),
-
-          color: Theme.of(context).colorScheme.surface,
-
-          surfaceTintColor: Colors.transparent,
-
-          elevation: 6,
-
-          shape: RoundedRectangleBorder(
-
-            borderRadius: BorderRadius.circular(20),
-
-            side: BorderSide(
-
-              color: Theme.of(context)
-
-                  .colorScheme
-
-                  .outline
-
-                  .withOpacity(0.25),
-
-            ),
-
-          ),
-
-          icon: const Icon(
-
-            Icons.account_circle_outlined,
-
-            color: Colors.white,
-
-            size: 26,
-
-          ),
-
-          onSelected: (action) {
-
-            if (action == 'refresh') {
-
-              if (!loading && !working) reload();
-
-            } else {
-
-              account(action);
-
-            }
-
-          },
-
-          itemBuilder: (menuContext) {
-
-            final scheme = Theme.of(menuContext).colorScheme;
-
-            final role = {
-
-              'admin': 'Administrador',
-
-              'treasurer': 'Tesorería',
-
-              'auditor': 'Consulta',
-
-            }[profile['role']] ?? 'Usuario';
-
-            return [
-
-              PopupMenuItem<String>(
-
-                enabled: false,
-
-                child: Row(
-
-                  children: [
-
-                    CircleAvatar(
-
-                      radius: 21,
-
-                      backgroundColor: scheme.primaryContainer,
-
-                      child: Icon(
-
-                        Icons.person_outline_rounded,
-
-                        color: scheme.onPrimaryContainer,
-
-                      ),
-
-                    ),
-
-                    const SizedBox(width: 11),
-
-                    Expanded(
-
-                      child: Column(
-
-                        crossAxisAlignment: CrossAxisAlignment.start,
-
-                        children: [
-
-                          Text(
-
-                            '$name',
-
-                            maxLines: 2,
-
-                            overflow: TextOverflow.ellipsis,
-
-                            style: TextStyle(
-
-                              color: scheme.onSurface,
-
-                              fontWeight: FontWeight.w800,
-
-                              fontSize: 14,
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 3),
-
-                          Text(
-
-                            role,
-
-                            style: TextStyle(
-
-                              color: scheme.onSurfaceVariant,
-
-                              fontSize: 12,
-
-                            ),
-
-                          ),
-
-                        ],
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ),
-
-              ),
-
-              const PopupMenuDivider(),
-
-              if (MediaQuery.sizeOf(context).width < 430)
-
-                PopupMenuItem<String>(
-
-                  value: 'refresh',
-
-                  enabled: !loading && !working,
-
-                  child: Row(
-
-                    children: [
-
-                      Icon(
-
-                        Icons.refresh_rounded,
-
-                        color: scheme.primary,
-
-                      ),
-
-                      const SizedBox(width: 13),
-
-                      Text(
-
-                        'Actualizar información',
-
-                        style: TextStyle(color: scheme.onSurface),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-              PopupMenuItem<String>(
-
-                value: 'password',
-
-                child: Row(
-
-                  children: [
-
-                    Icon(
-
-                      Icons.lock_outline_rounded,
-
-                      color: scheme.primary,
-
-                    ),
-
-                    const SizedBox(width: 13),
-
-                    Text(
-
-                      'Cambiar contraseña',
-
-                      style: TextStyle(color: scheme.onSurface),
-
-                    ),
-
-                  ],
-
-                ),
-
-              ),
-
-              PopupMenuItem<String>(
-
-                value: 'logout',
-
-                child: Row(
-
-                  children: [
-
-                    Icon(
-
-                      Icons.logout_rounded,
-
-                      color: scheme.error,
-
-                    ),
-
-                    const SizedBox(width: 13),
-
-                    Text(
-
-                      'Cerrar sesión',
-
-                      style: TextStyle(
-
-                        color: scheme.error,
-
-                        fontWeight: FontWeight.w600,
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ),
-
-              ),
-
-            ];
-
-          },
-
-        ),
-
-        const SizedBox(width: 8),
-
-      ],
-
+    appBar: AppBar(automaticallyImplyLeading:false,
+      toolbarHeight:MediaQuery.textScalerOf(context).scale(20)*1.3+50,
+      backgroundColor:Theme.of(context).colorScheme.surface,
+      foregroundColor:Theme.of(context).colorScheme.onSurface,
+      surfaceTintColor:Colors.transparent,titleSpacing:16,
+      title:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('TESORERÍA',style:TextStyle(color:Theme.of(context).colorScheme.primary,fontWeight:FontWeight.w800,fontSize:18,letterSpacing:.7)),
+        const SizedBox(height:4),Text('$name',maxLines:1,overflow:TextOverflow.ellipsis,
+          style:TextStyle(color:Theme.of(context).colorScheme.onSurfaceVariant,fontSize:12)),
+      ]),
+      actions:[ThemeButton(foregroundColor:Theme.of(context).colorScheme.primary),
+        IconButton(tooltip:'Mi perfil y opciones',onPressed:working?null:openAccount,
+          icon:Icon(Icons.account_circle_outlined,color:Theme.of(context).colorScheme.primary,size:28)),const SizedBox(width:8)],
+      bottom:PreferredSize(preferredSize:const Size.fromHeight(1),child:Container(height:1,color:Theme.of(context).colorScheme.outlineVariant)),
     ),
 
       body:SafeArea(child:BrandedBackdrop(child:Row(children:[if(wide)...[

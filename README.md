@@ -10,7 +10,7 @@ Como se rehízo el historial, esta rama permite probar la actualización sin mez
 ```bash
 git status --short
 git fetch origin
-git switch --create rediseno-tesoreria --track origin/codex/mobile-experience-refresh
+git switch --create experiencia-completa --track origin/codex/mobile-ux-full-views
 flutter pub get
 flutter test
 flutter run
@@ -74,27 +74,29 @@ Todavía se utiliza la web para crear/desactivar usuarios, corregir y finalizar 
 
 No se añaden dependencias, variables de entorno ni permisos Android. Se mantiene Supabase y el inicio de sesión actuales. No hay que volver a registrar saldos ni movimientos. La RPC de historial ya está instalada en el proyecto compartido con la web.
 
-## Experiencia visual renovada
+## Recorridos renovados de principio a fin
 
-- **Arranque:** la app dibuja una pantalla de bienvenida mientras inicializa Supabase y las preferencias, con estado de carga y reintento ante un fallo. No se agrega una espera artificial.
-- **Inicio de sesión:** fondo marfil/azul con trazos vectoriales locales, panel de acceso, logotipo original y estados de verificación. El formulario conserva sus controladores, foco, validaciones y autocompletado.
-- **Consulta:** nuevo panel de período con estado «Consultando…», navegación anterior/siguiente y selector de año/mes, además de acceso al mes actual. Las listas del selector y de compañeros se desplazan incluso con teclado o texto grande.
-- **Resumen:** tarjetas con respuesta al tacto/puntero y explicaciones desplegables de los fondos. Los esqueletos de carga son decorativos y no muestran cifras ficticias.
-- **Movimientos y actividades:** superficies, formularios, botones y encabezados coherentes; mensaje durante el guardado; detalle de movimiento y auditoría con encabezados identificables.
-- **Aportes:** conserva la deuda individual, la separación por meses y los abonos. Mejora la identificación de estados y la presentación del historial.
-- **Modales:** transiciones suaves, fondo atenuado, tipografía y acciones unificadas; se mantienen los valores de confirmación, cancelación, los bloqueos durante el guardado y la protección al salir sin guardar.
-- **Navegación y apariencia:** barra inferior flotante y selección animada, distribución para tablet, tema claro/oscuro/automático existente, contraste y decoración azul/dorada. La carga y las transiciones propias respetan la preferencia de reducir animaciones.
-- **PDF:** incorpora el logotipo original en su encabezado y un separador azul/dorado; conserva tablas, deudas y comprobantes.
+- **Inicio de sesión:** encabezado y presentación adaptativos, validación local al editar y botón con contraste del tema activo. Mantiene sesión, foco, controladores y autocompletado.
+- **Movimientos:** tarjetas con importe, concepto, categoría, estado, fecha, compañero, fondo y comprobante; el detalle conserva las acciones de corregir, completar, anular y abrir evidencia.
+- **Búsqueda:** por detalle, compañero y fecha, con normalización de acentos, limpiar y restablecer. El resumen de ingresos/egresos de la búsqueda solo suma registros confirmados. Los borradores guardados se filtran también y se presentan aparte, sin duplicarlos; pueden pertenecer a otro mes.
+- **Nuevo movimiento:** encabezado adaptativo, bloques de formulario claros, revisión del importe/fondo/fecha/compañero/comprobante y acciones que distinguen confirmar de guardar borrador. Con teclado, orientación horizontal o texto ampliado, las acciones pasan al contenido desplazable.
+- **Aportes del local:** panorama de deuda, cuotas/recaudación desplegables, tarjetas individuales con resumen y desglose; acceso directo al pendiente más antiguo y abonos por mes. Los compañeros sin inicio muestran una explicación y un formulario dedicado para confirmar el inicio y la cuota.
+- **Actividades:** tarjetas de compromiso, saldo y estado, abonos históricos y del sistema, progreso e historial; conserva registrar pagos, corregir y abrir movimientos/comprobantes. El editor de nuevo pendiente adapta su encabezado al tema claro/oscuro y mantiene las proyecciones del saldo.
+- **Tu espacio y perfil:** opciones organizadas por cuidado del período, seguridad y herramientas; perfil con nombre, correo y rol y accesos rápidos. Tu espacio sigue accesible al consultar un mes sin registro. Apariencia con selección visible y explicación de cada modo.
+- **Contraseña:** nueva y confirmación en una sola ventana; mostrar/ocultar, mínimo 12 caracteres, validación de coincidencia y errores de guardado sin perder lo escrito.
+- **Fondos iniciales:** mes de inicio, fondo general, reserva del local y observación por separado; motivo requerido al corregir y aviso explícito sobre el recálculo y reapertura de meses.
+- **Cerrar mes:** saldos consultados del servidor, dinero contado, diferencia en vivo y nota en una sola revisión. Si existe diferencia, solicita el motivo que ya exige el servidor. La reapertura conserva su motivo y los errores dentro del formulario.
+- **Informe:** selección de fotografías mediante interruptor, explicación del contenido y acción de generar/compartir. Conserva el PDF, las deudas acumuladas y sus comprobantes.
 
-Las animaciones no guardan ni modifican registros. La decoración se dibuja localmente, sin descargas, imágenes nuevas ni dependencias adicionales.
+Los formularios se desplazan sobre el teclado; durante el envío bloquean nuevos envíos y cancelación, y muestran errores en la misma ventana. Ningún cambio visual registra dinero automáticamente. Los permisos y restricciones de cierre siguen en el servidor. No hay dependencias, variables ni permisos nuevos.
 
 ## Validación de esta actualización
 
-Parte de `main` en `a2cbc1b111d74ce03386fb15396b3422d515a61f`, que ya incorpora los aportes individuales. Se comprobó el parseo de los **22 archivos Dart** y la resolución de sus importaciones locales. Se compararon **18 métodos de acceso y operaciones financieras** contra la versión anterior: conservan el mismo cuerpo, normalizando únicamente el nombre del contenedor visual de los diálogos.
+Base: `main` en `ac4a9d3b1020b08c78fc5e677cb013b3979d3d09`, con los dos cambios anteriores incorporados. Se comprobaron **26 archivos Dart** con el parser y sus importaciones locales. Se compararon **18 métodos conservados** de guardado de editores, carga, abonos y acceso; sus cuerpos son idénticos a la base. Las referencias a RPC y tablas permanecen iguales. La nueva presentación de fondos, cierre, contraseña y cuota conserva las acciones y claves existentes, cubiertas por pruebas de callbacks y payloads.
 
-Se incluyen **nueve pruebas nuevas** para estados de carga, reducción de movimiento, callbacks en tarjetas, explicación de saldos, período a 320/600 px y texto grande en ambos temas, búsqueda/selección y cancelación de confirmaciones. Son pruebas preparadas, no ejecutadas en este entorno.
+Se añadieron **14 pruebas**: validación de contraseña, error recuperable de guardado, corrección de fondos separada, inicio de cuota obligatorio y envío de sus datos, cierre con diferencia y centavos, pantallas a 320/600 px con texto grande en ambos temas, login y formularios con teclado. Son pruebas preparadas, no ejecutadas aquí.
 
-Pendiente ejecutar `flutter analyze`, `flutter test`, compilar Android y comprobar visualmente app y PDF. La revisión automática bloqueó anteriormente Flutter por su consulta de metadatos internos de la instancia; no se intentó eludir ese bloqueo. No se modificaron la base de datos, los permisos, las dependencias ni los datos financieros.
+Pendiente ejecutar `flutter analyze`, `flutter test`, compilar e inspeccionar la app en Android. Flutter continúa bloqueado en este entorno por la revisión automática al consultar metadatos internos de la instancia; no se intentó eludir ese bloqueo. Las comprobaciones de sintaxis no sustituyen al análisis de tipos ni a las pruebas de interfaz. No se escribió ni se modificó la base de datos.
 
 Comprobaciones recomendadas antes de registrar datos reales:
 

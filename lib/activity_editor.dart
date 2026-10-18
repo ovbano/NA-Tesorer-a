@@ -1,9 +1,9 @@
 import 'experience.dart';
+import 'ux_components.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import 'brand.dart';
-import 'group_logo.dart';
 import 'treasury.dart';
 import 'treasury_widgets.dart';
 import 'treasury_dialogs.dart';
@@ -173,91 +173,14 @@ class _ActivityEditorState extends State<ActivityEditor> {
     try { return cents(input, optional: true); } catch (_) { return null; }
   }
 
-  Widget _hero(BuildContext context, {required String heading, required String detail, required IconData icon}) {
-    final isPayment = widget.payment;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Color(0xff061531), Color(0xff0d2f62), Color(0xff164976)]),
-        border: Border.all(color: brandGold.withOpacity(.44)),
-        boxShadow: [BoxShadow(color: brandNavy.withOpacity(.18), blurRadius: 28, offset: const Offset(0, 14))],
-      ),
-      child: Stack(children: [
-        Positioned(right: -56, top: -70, child: Container(width: 190, height: 190,
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: brandGold.withOpacity(.14), width: 34)))),
-        Positioned(right: -35, bottom: -72, child: Container(width: 145, height: 145,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(.045)))),
-        Padding(padding: const EdgeInsets.fromLTRB(22, 22, 22, 24), child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(padding: const EdgeInsets.all(7), decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12), borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: brandGold.withOpacity(.38))),
-              child: const GroupLogo(size: 45)),
-            const SizedBox(width: 12),
-            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('AMIGOS VERDADEROS', maxLines: 2, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 1.0, fontSize: 12)),
-              SizedBox(height: 3),
-              Text('TESORERÍA  •  ACTIVIDADES', style: TextStyle(color: brandGold, fontWeight: FontWeight.w700, letterSpacing: .7, fontSize: 10)),
-            ])),
-          ]),
-          const SizedBox(height: 24),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: brandGold.withOpacity(.14), border: Border.all(color: brandGold.withOpacity(.38)), borderRadius: BorderRadius.circular(99)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, color: brandGold, size: 16), const SizedBox(width: 8),
-              Flexible(child:Text(isPayment ? 'INGRESO POR ACTIVIDAD' : editing ? 'ACTUALIZACIÓN DE COMPROMISO' : 'NUEVO COMPROMISO',
-                style: const TextStyle(color: brandGold, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: .65))),
-            ])),
-          const SizedBox(height: 14),
-          Text(heading, maxLines: 3, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 29, height: 1.12)),
-          const SizedBox(height: 10),
-          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 470), child: Text(detail,
-            style: const TextStyle(color: Color(0xffe0e9f5), fontSize: 14, height: 1.55))),
-          const SizedBox(height: 21),
-          Row(children: [
-            Container(width: 30, height: 3, decoration: BoxDecoration(color: brandGold, borderRadius: BorderRadius.circular(8))),
-            const SizedBox(width: 8),
-            Expanded(child: Text(isPayment ? 'Registro de dinero recibido' : 'Control de compromisos del grupo',
-              style: const TextStyle(color: Color(0xffdce8f6), fontSize: 11.5))),
-          ]),
-        ])),
-      ]),
-    );
-  }
+  Widget _hero(BuildContext context,{required String heading,required String detail,required IconData icon})=>AdaptiveIntro(
+    title:heading,subtitle:detail,icon:icon,showLogo:true,
+    eyebrow:widget.payment?'PAGO DE ACTIVIDAD':editing?'CORREGIR COMPROMISO':'NUEVO PENDIENTE',
+  );
 
-  Widget _section({required String number, required String title, required String subtitle,
-      required IconData icon, required List<Widget> children}) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: colors.outline.withOpacity(.13)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? .08 : .035), blurRadius: 20, offset: const Offset(0, 8))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Container(height: 3, decoration: const BoxDecoration(gradient: LinearGradient(colors: [brandGold, Color(0xffb19a62), Color(0xff173b70)]))),
-        Padding(padding: const EdgeInsets.fromLTRB(20, 21, 20, 16), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(width: 40, height: 40, alignment: Alignment.center,
-            decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(14)),
-            child: Text(number, style: TextStyle(color: colors.onPrimaryContainer, fontSize: 17, fontWeight: FontWeight.w900))),
-          const SizedBox(width: 13),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: TextStyle(color: colors.onSurface, fontSize: 17.5, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 5),
-            Text(subtitle, style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12.5, height: 1.45)),
-          ])),
-          Icon(icon, size: 21, color: colors.onSurfaceVariant),
-        ])),
-        Divider(height: 1, color: colors.outline.withOpacity(.11)),
-        Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)),
-      ]),
-    );
-  }
+  Widget _section({required String number,required String title,required String subtitle,required IconData icon,required List<Widget> children})=>
+    UxSection(title:title,description:subtitle,step:number,icon:icon,
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:children));
 
   Widget _stat(String label, int amount, {bool highlight = false}) {
     final colors = Theme.of(context).colorScheme;
@@ -280,7 +203,7 @@ class _ActivityEditorState extends State<ActivityEditor> {
   }
 
   Widget _statsPair(Widget a, Widget b) => LayoutBuilder(builder: (context, size) {
-    if (size.maxWidth < 340) return Column(children: [a, const SizedBox(height: 10), b]);
+    if (size.maxWidth < 340 || MediaQuery.textScalerOf(context).scale(16)>23) return Column(children: [a, const SizedBox(height: 10), b]);
     return Row(children: [Expanded(child: a), const SizedBox(width: 11), Expanded(child: b)]);
   });
 
@@ -356,7 +279,7 @@ class _ActivityEditorState extends State<ActivityEditor> {
           child: AbsorbPointer(
             absorbing: busy,
             child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
               children: [
                 if(busy) const BusyStrip(message:'Guardando el registro…'),
