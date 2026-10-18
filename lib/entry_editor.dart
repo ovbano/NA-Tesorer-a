@@ -18,9 +18,9 @@ import 'treasury_dialogs.dart';
 
 class EntryEditor extends StatefulWidget {
 
-  const EntryEditor({super.key,required this.repo,required this.month,required this.settings,required this.members,required this.companions,this.entry});
+  const EntryEditor({super.key,required this.repo,required this.month,required this.settings,required this.members,required this.companions,this.entry,this.initialPayment});
 
-  final TreasuryRepository repo;final DateTime month;final Json settings;final List<Json> members,companions;final Json? entry;
+  final TreasuryRepository repo;final DateTime month;final Json settings;final List<Json> members,companions;final Json? entry;final Json? initialPayment;
 
   @override State<EntryEditor> createState()=>_EntryEditorState();
 
@@ -36,7 +36,7 @@ class _EntryEditorState extends State<EntryEditor> {
   Color get movementColor => income ? const Color(0xFF177A4E) : const Color(0xFFC2383A);
   bool get correcting=>widget.entry?['status']=='posted';bool get rent=>category=='rent_contribution';
 
-  @override void initState(){super.initState();final e=widget.entry??{};id=e['id']??const Uuid().v4();version=e['version']??0;kind=e['kind']??'income';category=e['category']??'seventh';fund=e['fund']??'general';date=DateTime.parse(e['entry_date']??iso(today()));due=DateTime.parse(e['due_month']??period(widget.month));memberId=e['member_id'];receiptPath=e['receipt_path'];amount.text=e['amount_cents']==null?'':((e['amount_cents'] as num)/100).toStringAsFixed(2);description.text=e['description']??'';noReceipt.text=e['no_receipt_reason']??'';for(final c in [amount,description,noReceipt,reason]){c.addListener(()=>dirty=true);}}
+  @override void initState(){super.initState();final e=widget.entry??widget.initialPayment??{};id=e['id']??const Uuid().v4();version=e['version']??0;kind=e['kind']??'income';category=e['category']??'seventh';fund=e['fund']??'general';date=DateTime.parse(e['entry_date']??iso(today()));due=DateTime.parse(e['due_month']??period(widget.month));memberId=e['member_id'];receiptPath=e['receipt_path'];amount.text=e['amount_cents']==null?'':((e['amount_cents'] as num)/100).toStringAsFixed(2);description.text=e['description']??'';noReceipt.text=e['no_receipt_reason']??'';for(final c in [amount,description,noReceipt,reason]){c.addListener(()=>dirty=true);}}
 
   @override void dispose(){for(final c in [amount,description,noReceipt,reason]){c.dispose();}super.dispose();}
 

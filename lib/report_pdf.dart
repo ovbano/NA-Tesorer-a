@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'treasury.dart';
+import 'rent_dues.dart';
 
 /// Informe mensual listo para impresión A4 y lectura por terceros.
 /// Conserva el contrato usado por Workspace.export().
@@ -12,6 +13,7 @@ Future<Uint8List> reportPdf(
   Map<String, Uint8List> evidence = const {},
   bool includeEvidence = false,
 }) async {
+  report = rentReportData(report);
   final document = pw.Document(compress: true);
   final funds = rows(report['funds']);
   final entries = rows(report['entries'])
@@ -19,6 +21,10 @@ Future<Uint8List> reportPdf(
       .toList();
   final incomeEntries = entries.where((e) => e['kind'] == 'income').toList();
   final expenseEntries = entries.where((e) => e['kind'] == 'expense').toList();
+  final history = report['dues_history'] is Map ? Json.from(report['dues_history'] as Map) : <String,dynamic>{};
+  final roster = rows(report['dues_roster'] ?? history['members']);
+  final totals = rentTotals(roster);
+  final hasHistory = history['configured'] == true;
   final dues = rows(report['dues']);
 
   final navy = PdfColor.fromHex('#10284C');
@@ -41,16 +47,6 @@ Future<Uint8List> reportPdf(
   final income = sumFund('income');
   final expense = sumFund('expense');
   final closing = sumFund('closing');
-  final dueExpected = dues.fold<num>(
-      0, (total, due) => total + ((due['expected'] as num?) ?? 0));
-  final duePaid = dues.fold<num>(
-      0, (total, due) => total + ((due['paid'] as num?) ?? 0));
-  final duePending = dues.fold<num>(0, (total, due) {
-    final expected = (due['expected'] as num?) ?? 0;
-    final paid = (due['paid'] as num?) ?? 0;
-    return total + (expected - paid).clamp(0, 100000000);
-  });
-
   String value(Object? input) => money(input);
   String safe(Object? input, {String fallback = '—'}) {
     final text = input?.toString().trim() ?? '';
@@ -172,7 +168,8 @@ Future<Uint8List> reportPdf(
           if (headers[i] == 'USD' || headers[i] == 'Inicio' ||
               headers[i] == 'Ingresos' || headers[i] == 'Egresos' ||
               headers[i] == 'Disponible' || headers[i] == 'Cuota' ||
-              headers[i] == 'Recibido' || headers[i] == 'Pendiente')
+              headers[i] == 'Recibido' || headers[i] == 'Pendiente' ||
+              headers[i] == 'Deuda anterior' || headers[i] == 'Del mes' || headers[i] == 'Deuda total')
             i: pw.Alignment.centerRight,
       },
     );
@@ -332,37 +329,36 @@ Future<Uint8List> reportPdf(
           headerColor: red,
         ),
         pw.SizedBox(height: 24),
-        sectionTitle('04', 'Aportes individuales para el local',
-            subtitle: 'Obligaciones y aportes de compañeros. Los pendientes '
-                'se muestran solo como información, no como dinero en caja.'),
-        dataTable(
-          ['Compañero', 'Cuota', 'Recibido', 'Pendiente'],
-          dues.map((d) {
-            final expected = (d['expected'] as num?) ?? 0;
-            final paid = (d['paid'] as num?) ?? 0;
-            return [
-              safe(d['name'], fallback: 'No identificado'),
-              value(expected),
-              value(paid),
-              value((expected - paid).clamp(0, 100000000)),
-            ];
-          }).toList(),
-          widths: [3.9, 1.3, 1.3, 1.5],
-        ),
-        pw.SizedBox(height: 10),
-        pw.Container(
-          padding: const pw.EdgeInsets.all(10),
-          decoration: pw.BoxDecoration(
-              color: navySoft, borderRadius: pw.BorderRadius.circular(7)),
-          child: pw.Row(children: [
-            pw.Expanded(child: pw.Text('Cuotas: ${value(dueExpected)}',
-                style: style(9, bold: true))),
-            pw.Expanded(child: pw.Text('Recibido: ${value(duePaid)}',
-                style: style(9, bold: true))),
-            pw.Expanded(child: pw.Text('Pendiente: ${value(duePending)}',
-                style: style(9, color: red, bold: true))),
-          ]),
-        ),
+        sectionTitle('04', 'Anexo privado · Aportes para arriendo',
+            subtitle: 'Deuda individual de todos los compañeros registrados. '
+                'Los pendientes son informativos y no forman parte del dinero disponible.'),
+        if (hasHistory) ...[
+          pw.Text('Estado hasta ${safe(history['through_month'])}. Deuda anterior: meses previos. '
+              'Del mes: pendiente del período consultado. Total = anterior + del mes. '
+              'Por configurar significa que falta confirmar el inicio, no una deuda de cero.',style:style(9,color:muted)),
+          pw.SizedBox(height:10),
+          dataTable(['Compañero','Deuda anterior','Del mes','Deuda total'],[
+            ...roster.map((d)=>d['tracking']=='unconfigured'
+              ? [safe(d['name']),'—','—','Por configurar']
+              : [safe(d['name']),value(d['previous_pending']),value(d['current_pending']),value(d['total_pending'])]),
+            ['TOTAL',value(totals['previous_pending']),value(totals['current_pending']),value(totals['total_pending'])]],
+            widths:[3.4,1.6,1.4,1.6]),
+          pw.SizedBox(height:18),
+          sectionTitle('05','Detalle de meses y abonos',
+              subtitle:'Los pagos se aplican al mes asignado y entran en caja en la fecha real de recepción. '
+                  'Un excedente de un mes no cancela automáticamente otro.'),
+          dataTable(['Compañero','Mes','Cuota','Recibido','Pendiente'],[
+            for(final d in roster)
+              for(final p in rows(d['periods']))
+                [safe(d['name']),monthLabel(DateTime.parse(p['month'] as String)),value(p['expected']),value(p['paid']),value(p['pending'])]],
+              widths:[2.6,2,1.1,1.1,1.2]),
+        ] else ...[
+          pw.Text('Historial acumulado no disponible. Los siguientes importes son solo del mes consultado; no confirman la deuda total.',style:style(9,color:red)),
+          pw.SizedBox(height:10),
+          dataTable(['Compañero','Cuota','Recibido','Pendiente'],dues.map((d)=>[
+            safe(d['name']),value(d['expected']),value(d['paid']),
+            value((rentAmount(d,'expected')-rentAmount(d,'paid')).clamp(0,100000000))]).toList(),widths:[3.9,1.3,1.3,1.5]),
+        ],
         pw.SizedBox(height: 18),
         pw.Text('Notas de lectura', style: style(10, bold: true)),
         pw.SizedBox(height: 5),
@@ -378,7 +374,7 @@ Future<Uint8List> reportPdf(
 
   if (includeEvidence) {
     var annexNumber = 0;
-    for (final e in entries.where((e) => e['receipt_path'] != null)) {
+    for (final e in entries.where((e) => e['receipt_path'] != null && !e['receipt_path'].toString().toLowerCase().endsWith('.pdf'))) {
       annexNumber++;
       final path = e['receipt_path'].toString();
       final imageBytes = evidence[path];

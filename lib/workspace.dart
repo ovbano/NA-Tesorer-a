@@ -11,6 +11,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'treasury.dart';
+import 'rent_dues.dart';
+import 'rent_dues_card.dart';
 
 import 'entry_editor.dart';
 
@@ -42,7 +44,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   DateTime month=DateTime(today().year,today().month);int section=0,generation=0;bool loading=true,working=false;String? error,accessError;Json? report,settings;
 
-  List<Json> members=[],companions=[],drafts=[],activities=[];Json? liveProfile;
+  List<Json> members=[],companions=[],drafts=[],activities=[];Json? liveProfile;Json? duesHistory;List<Json> duesRoster=[];
 
   Json get profile=>liveProfile??widget.profile;String query='',kind='all';
 
@@ -74,13 +76,13 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
       final s=await widget.repo.settings();
 
-      final result=await Future.wait<dynamic>([s==null||period(month).compareTo(s['start_month'])<0?Future<Json>.value({'configured':false}):widget.repo.report(month),widget.repo.all('treasury_members'),widget.repo.companions(),widget.repo.all('treasury_entries',status:'draft'),widget.repo.client.rpc('treasury_activities')]);
+      final result=await Future.wait<dynamic>([s==null||period(month).compareTo(s['start_month'])<0?Future<Json>.value({'configured':false}):widget.repo.report(month),widget.repo.all('treasury_members'),widget.repo.companions(),widget.repo.all('treasury_entries',status:'draft'),widget.repo.client.rpc('treasury_activities'),s==null||period(month).compareTo(s['start_month'])<0?Future<Json>.value({'configured':false}):widget.repo.duesHistory(month)]);
 
       if(!mounted||ticket!=generation)return;
 
-      setState((){liveProfile=access;settings=s;report=result[0];members=result[1];companions=result[2];drafts=result[3];activities=rows(result[4]);accessError=null;});
+      setState((){liveProfile=access;settings=s;report=result[0];members=result[1];companions=result[2];drafts=result[3];activities=rows(result[4]);duesHistory=Json.from(result[5] as Map);duesRoster=duesHistory?['configured']==true?rentRoster(duesHistory!,members,companions):[];accessError=null;});
 
-    }catch(e){if(mounted&&ticket==generation){setState((){error=message(e);if(e is FormatException){accessError=error;report=null;members=[];companions=[];drafts=[];activities=[];}});}}
+    }catch(e){if(mounted&&ticket==generation){setState((){error=message(e);if(e is FormatException){accessError=error;report=null;members=[];companions=[];drafts=[];activities=[];duesHistory=null;duesRoster=[];}});}}
 
     finally{if(mounted&&ticket==generation)setState(()=>loading=false);}
 
@@ -409,6 +411,15 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
         ) as Map,
       );
 
+      final exportHistory = await widget.repo.duesHistory(month);
+      if (exportHistory['configured'] != true) {
+        throw const FormatException('No se pudo obtener el historial de aportes. Vuelve a intentar.');
+      }
+      final exportMembers = await widget.repo.all('treasury_members');
+      final exportCompanions = await widget.repo.companions();
+      fresh['dues_history'] = exportHistory;
+      fresh['dues_roster'] = rentRoster(exportHistory,exportMembers,exportCompanions);
+
       // 3. Preparar los comprobantes fotográficos.
       final evidence = <String, Uint8List>{};
       final processedPaths = <String>{};
@@ -436,10 +447,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
           // El informe admite comprobantes de imagen.
           // Los PDF adjuntos se consultan desde el movimiento.
-          if (path.toLowerCase().endsWith('.pdf')) {
-            failed++;
-            continue;
-          }
+          if (path.toLowerCase().endsWith('.pdf')) continue;
 
           try {
             final bytes = await widget.repo.client.storage
@@ -1129,37 +1137,69 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   );
 
+  Future<void> receiveRent(Json member,Json duePeriod) async {
+    if(!writable||working||closed||settings==null||period(month)!=period(today()))return;
+    final saved=await Navigator.push<bool>(context,MaterialPageRoute(builder:(_)=>EntryEditor(
+      repo:widget.repo,month:month,settings:settings!,members:members,companions:companions,
+      initialPayment:{'kind':'income','category':'rent_contribution','fund':'rent',
+        'entry_date':iso(today()),'member_id':member['id'],'due_month':duePeriod['month'],
+        'amount_cents':duePeriod['pending'],
+        'description':'Aporte para arriendo · ${member['name']} · ${monthLabel(DateTime.parse(duePeriod['month'] as String))}'},
+    )));
+    if(saved==true&&mounted){notify('Aporte guardado. El saldo se actualiza según el mes asignado.');await reload();}
+  }
+
+  Future<void> configureRent(Json person) async {
+    if(!writable||working||settings==null)return;
+    DateTime? start;
+    final amount=TextEditingController(text:'12.00');
+    String? feedback;
+    bool saving=false;
+    await showDialog<void>(context:context,barrierDismissible:false,builder:(dialogContext)=>
+      StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(
+        scrollable:true,title:Text('Cuota de ${person['name']}'),
+        content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Text('Confirma desde qué mes corresponde el aporte. Esto genera obligaciones informativas; no agrega ingresos ni dinero disponible.'),
+          const SizedBox(height:12),
+          OutlinedButton.icon(onPressed:saving?null:()async{
+            final selected=await showModalBottomSheet<DateTime>(context:c,isScrollControlled:true,useSafeArea:true,
+              builder:(_)=>MonthSheet(selected:start??month));
+            if(selected!=null&&c.mounted)set(()=>start=selected);
+          },icon:const Icon(Icons.calendar_month),label:Text(start==null?'Elegir mes de inicio':monthLabel(start!))),
+          const SizedBox(height:12),
+          TextField(controller:amount,enabled:!saving,keyboardType:const TextInputType.numberWithOptions(decimal:true),
+            decoration:const InputDecoration(labelText:'Cuota mensual · USD')),
+          if(feedback!=null) Text(feedback!,style:TextStyle(color:Theme.of(c).colorScheme.error)),
+        ]),
+        actions:[TextButton(onPressed:saving?null:()=>Navigator.pop(c),child:const Text('Cancelar')),
+          FilledButton(onPressed:saving?null:()async{
+            try{
+              if(start==null)throw const FormatException('Selecciona el mes de inicio.');
+              if(period(start!).compareTo(settings!['start_month'] as String)<0)throw const FormatException('El inicio no puede ser anterior al inicio de Tesorería.');
+              final value=cents(amount.text);
+              if(value==null||value<=0)throw const FormatException('Indica una cuota mayor que cero.');
+              set(()=>saving=true);
+              await widget.repo.profile();
+              await widget.repo.command('member',{'source_anniversary_id':person['source_id'],
+                'name':person['name'],'start_month':period(start!),'end_month':null,'monthly_cents':value});
+              if(c.mounted)Navigator.pop(c);
+              await reload();
+            }catch(e){if(c.mounted)set((){feedback=message(e);saving=false;});}
+          },child:Text(saving?'Guardando…':'Guardar'))],
+      ))));
+    await Future<void>.delayed(const Duration(milliseconds:300));amount.dispose();
+  }
+
   List<Widget> duesView() {
 
-    final dues = rows(report?['dues']);
+    final dues = duesRoster;
+    final total = rentTotals(dues);
 
     final pendingActivities = activities.fold<num>(
 
       0, (sum, account) => sum + (account['pending_cents'] as num));
 
-    final normalizedDues = _searchKey(duesSearch);
-
-    final filteredDues = dues.where((due) {
-
-      final expected = (due['expected'] as num).toInt();
-
-      final paid = (due['paid'] as num).toInt();
-
-      final pending = (expected - paid).clamp(0, 100000000);
-
-      final matchesName = _searchKey(due['name']).contains(normalizedDues);
-
-      final matchesStatus = duesFilter == 'all' ||
-
-          (duesFilter == 'pending' && pending > 0 && paid == 0) ||
-
-          (duesFilter == 'partial' && pending > 0 && paid > 0) ||
-
-          (duesFilter == 'paid' && pending == 0);
-
-      return matchesName && matchesStatus;
-
-    }).toList();
+    final filteredDues = filterRent(dues,duesSearch,duesFilter);
 
     final normalizedActivities = _searchKey(activitySearch);
 
@@ -1189,17 +1229,19 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
       LedgerPanel(child: Wrap(spacing: 28, runSpacing: 18, children: [
 
-        MoneyCaption('Cuotas del mes',
-
-            dues.fold<num>(0, (sum, due) => sum + (due['expected'] as num))),
-
-        MoneyCaption('Recibido',
-
-            dues.fold<num>(0, (sum, due) => sum + (due['paid'] as num))),
+        MoneyCaption('Deuda anterior', total['previous_pending']),
+        MoneyCaption('Pendiente del mes', total['current_pending']),
+        MoneyCaption('Total calculado por cobrar', total['total_pending']),
+        MoneyCaption('Cuotas del mes', rows(report?['dues']).fold<int>(0,(sum,d)=>sum+rentAmount(d,'expected'))),
+        MoneyCaption('Recibido para el mes', rows(report?['dues']).fold<int>(0,(sum,d)=>sum+rentAmount(d,'paid'))),
 
       ])),
 
-      const InfoNote('Los aportes confirmados ya están incluidos en el fondo del local.'),
+      const InfoNote('La deuda es informativa y no suma dinero en caja. Los abonos se descuentan del mes asignado; el dinero ingresa en su fecha real de recepción.'),
+      if (dues.any((d)=>d['tracking']=='unconfigured'))
+        const InfoNote('Hay compañeros con inicio por configurar. Confirma desde qué mes les corresponde la cuota; su deuda todavía no se ha calculado.'),
+      if (period(month)!=period(today()))
+        WorkspaceActionButton(onPressed:working?null:()async{setState(()=>month=DateTime(today().year,today().month));await reload();},icon:Icons.today,title:'Ir al mes actual para recibir abonos',secondary:true),
 
       _listFilters(
 
@@ -1219,11 +1261,10 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
           'all': 'Todos',
 
-          'pending': 'Por aportar',
-
-          'partial': 'Abono recibido',
-
-          'paid': 'Cuota cubierta',
+          'pending': 'Con deuda',
+          'partial': 'Con abonos y deuda',
+          'paid': 'Sin deuda calculada',
+          'unconfigured': 'Por configurar',
 
         },
 
@@ -1251,7 +1292,9 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
       for (final due in filteredDues)
 
-        DueCard(key: ValueKey('due-${due['id']}'), due: due),
+        RentDuesCard(key:ValueKey('due-${due['id']}'),member:due,
+          onConfigure:writable&&!working&&due['tracking']=='unconfigured'?()=>configureRent(due):null,
+          onPay:writable&&!working&&!closed&&period(month)==period(today())?(p)=>receiveRent(due,p):null),
 
       const SizedBox(height: 14),
 

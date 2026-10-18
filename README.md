@@ -2,18 +2,21 @@
 
 Aplicación Flutter / Dart independiente de la web. Esta integración conserva el nombre `na_tesoreria`, la estructura Android y el applicationId del proyecto que ya se probó en un teléfono.
 
-## Ejecutar tu copia actual desde Git Bash
+## Probar esta actualización desde Git Bash
 
-Abre **Git Bash Here** dentro de la carpeta del proyecto, la que contiene `pubspec.yaml` y `.git`.
+Abre **Git Bash Here** dentro de tu proyecto (donde está `pubspec.yaml`).
+Como se rehízo el historial, esta rama permite probar la actualización sin mezclar los commits locales antiguos:
 
 ```bash
 git status --short
 git fetch origin
-git switch main
-git pull --ff-only origin main
+git switch --create aportes-individuales-movil --track origin/codex/mobile-individual-rent-dues
 flutter pub get
+flutter test
 flutter run
 ```
+
+La primera vez crea la rama local; para actualizarla después usa `git pull --ff-only`.
 
 Si tienes cambios locales, guárdalos en un commit antes del pull. No uses `git reset --hard` ni borres tu carpeta para actualizar. Si hay varios dispositivos, elige el Android físico o usa `flutter run -d ID_DEL_TELEFONO` con el ID que muestra `flutter devices`.
 
@@ -48,18 +51,36 @@ Es una instalación de prueba firmada con la clave de depuración, no un lanzami
 - Borradores en Supabase; completar, corregir y anular con motivo usando las RPC existentes y sus controles de versión.
 - Cámara/galería, optimización al capturar, almacenamiento privado y visualización de comprobantes.
 - Registrar/corregir fondos iniciales. El backend recalcula saldos y conserva auditoría.
-- Aportes por mes, pendientes de actividades, crear/corregir deuda y recibir pagos. Los pagos se incorporan una sola vez al fondo general mediante la RPC de actividades.
+- Aportes individuales de todos los compañeros registrados, deuda acumulada de meses anteriores, filtros y desglose de cuotas/abonos por mes. Pendientes de actividades, crear/corregir deuda y recibir pagos. Los pagos se incorporan una sola vez al fondo general mediante la RPC de actividades.
 - Cerrar el mes contrastando dinero contado con calculado; reabrir con motivo mediante la misma operación de la web.
 - PDF con ingresos y egresos separados, resumen por fondos, aportes individuales y fotografías opcionales. Se descarga evidencia secuencialmente y se limita la memoria destinada a las fotos. Si alguna falla, el PDF indica consultar el original.
 - Últimos 50 eventos de auditoría y acceso al panel web del administrador.
 
-Todavía se utiliza la web para crear/desactivar usuarios, administrar todas las participaciones de los compañeros y consultar la auditoría completa. Ese panel mantiene su propio inicio de sesión en el navegador. No hay funcionamiento offline: los borradores y las fotos se guardan en Supabase con conexión. Logo/icono definitivo pendientes.
+Todavía se utiliza la web para crear/desactivar usuarios, corregir y finalizar participaciones de los compañeros y consultar la auditoría completa. Ese panel mantiene su propio inicio de sesión en el navegador. No hay funcionamiento offline: los borradores y las fotos se guardan en Supabase con conexión. Logo/icono definitivo pendientes.
 
-## Validación
+## Aportes individuales y deuda acumulada
 
-Se comprobó el parseo de los ocho archivos Dart, las configuraciones YAML/JSON y el manifiesto Android. Se verificaron los contratos de las RPC contra el código del sistema web. Se incluyen tests de importes en centavos, límites, clave pública, períodos y generación de PDF; la prueba del contador de Flutter fue reemplazada.
+- Todos los compañeros del registro aparecen, aunque nunca hayan pagado. El enlace usa `source_anniversary_id`, no una comparación de nombres.
+- Las cifras proceden de `treasury_dues_history(p_month)`, la misma función de la web. No se crean deudas ni se suman cuotas pendientes al efectivo desde el teléfono.
+- **Deuda anterior** reúne los pendientes anteriores al mes consultado. **Pendiente del mes** muestra lo que falta de esa cuota. **Total** suma ambos.
+- **Por configurar** indica que falta confirmar desde qué mes corresponde la cuota. Administrador o tesorería pueden abrir **Configurar inicio**, elegir el mes y confirmar la cuota (sugerencia: USD 12). No se inventan fechas de ingreso. El servidor mantiene las protecciones de meses cerrados.
+- En **Ver meses y abonos** se ven las cuotas y pagos de cada mes. En el mes actual abierto, **Registrar abono a este mes** abre el editor con el compañero, el mes adeudado y el pendiente precargados. Se puede cambiar el importe para registrar un abono parcial.
+- La fecha del movimiento es la fecha real de recepción; el mes del aporte es la obligación que cancela. Un pago recibido hoy para septiembre ingresa hoy en caja y reduce septiembre en el historial actual; no cambia la foto del cierre de septiembre.
+- Al consultar períodos históricos se deshabilita el cobro directo. Usa **Ir al mes actual para recibir abonos**, así no cobras de nuevo una deuda que quizá se pagó después del corte histórico.
+- Los excedentes de una cuota no se asignan automáticamente a otras. Las obligaciones pendientes se conservan cuando termina la participación.
+- El PDF conserva ingresos y egresos separados y muestra el **Anexo privado · Aportes para arriendo** con deuda anterior, pendiente del mes, total individual y total general; después incluye el desglose de meses y abonos. Los compañeros sin inicio figuran como **Por configurar**. No agrega una página de notas de movimientos.
+- El anexo contiene nombres e información financiera individual: compártelo solo con las personas autorizadas.
+- Las fotos siguen siendo opcionales. Los PDF originales adjuntos se consultan desde sus movimientos; no se intentan insertar como fotografías.
 
-No se han ejecutado `flutter analyze`, `flutter test` ni una compilación Android en este entorno. La revisión automática bloqueó la ejecución de Flutter al intentar consultar metadatos internos de la instancia. No se intentó eludir ese bloqueo. La compilación y verificación visual deben realizarse en tu computadora o ejecutando manualmente el workflow de Actions. No se realizaron escrituras ni cambios de esquema en Supabase.
+No se añaden dependencias, variables de entorno ni permisos Android. Se mantiene Supabase y el inicio de sesión actuales. No hay que volver a registrar saldos ni movimientos. La RPC de historial ya está instalada en el proyecto compartido con la web.
+
+## Validación de esta actualización
+
+Base revisada: commit `1cccf0e76c4d445ccb0b20fca77fa306056ded67` (**Ultimo avance**). Se revisaron los archivos de `lib`, las pruebas, las dependencias y la configuración Android; los cambios parten de esa base, sin recuperar commits descartados.
+
+Se verificó el parseo de los 20 archivos Dart, las importaciones locales y los contratos de parámetros/campos de las RPC y sus permisos de ejecución mediante consultas de lectura. Se añadieron pruebas de listado completo, compañeros sin inicio, deuda histórica, cierres, generación de PDF y tarjetas con texto grande a 320/600 px.
+
+No se ejecutaron `flutter analyze`, `flutter test` ni compilaciones Android aquí. La revisión automática había bloqueado Flutter por su consulta de metadatos internos de la instancia; no se intentó eludir ese bloqueo. Las pruebas nuevas están preparadas para ejecutarse en tu equipo con los comandos anteriores; la visualización final del PDF y de la app requiere esa ejecución. No se escribieron movimientos ni se modificó el esquema de Supabase.
 
 Comprobaciones recomendadas antes de registrar datos reales:
 
@@ -85,3 +106,4 @@ flutter run --dart-define-from-file=config.local.json
 ```
 
 `config.local.json` está excluido de git. La aplicación no recrea tablas ni migra datos.
+
