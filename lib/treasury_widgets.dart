@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'package:flutter/material.dart';
 import 'package:na_tesoreria/brand.dart';
 import 'treasury.dart';
@@ -39,11 +40,12 @@ class LedgerPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = _Palette(context);
-    return Container(
+    return PanelMotion(child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: c.surface,
+        gradient: LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[c.surface,Color.alphaBlend(c.primary.withOpacity(.025),c.surface)]),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: c.line),
         boxShadow: [
@@ -55,7 +57,7 @@ class LedgerPanel extends StatelessWidget {
         ],
       ),
       child: Padding(padding: padding, child: child),
-    );
+    ));
   }
 }
 
@@ -845,44 +847,7 @@ class FormSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 43,
-                height: 43,
-                decoration: BoxDecoration(
-                  color: c.soft,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(icon, color: c.primary, size: 23),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        height: 1.3,
-                        color: c.ink,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        subtitle!,
-                        style: TextStyle(color: c.muted, height: 1.5),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
+          SheetHeading(title:title,icon:icon,subtitle:subtitle),
           const SizedBox(height: 18),
           Divider(color: c.line, height: 1),
           const SizedBox(height: 18),
@@ -943,14 +908,14 @@ class FormSection extends StatelessWidget {
             splashColor: accentColor.withOpacity(0.10),
             highlightColor: accentColor.withOpacity(0.05),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              constraints: const BoxConstraints(minHeight: 78),
+              duration: experienceDuration(context,180),
+              constraints: const BoxConstraints(minHeight: 82),
               padding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 14,
               ),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(19),
+                borderRadius: BorderRadius.circular(22),
                 border: Border.all(
                   color: borderColor,
                   width: enabled ? 1.2 : 1,
@@ -1086,168 +1051,54 @@ class OptionSheet extends StatefulWidget {
 
 
 class _OptionSheetState extends State<OptionSheet> {
-  String query = '';
-  String normalized(String value) {
-    var text = value.toLowerCase().trim();
-    for (final pair
-        in const {
-          'á': 'a',
-          'é': 'e',
-          'í': 'i',
-          'ó': 'o',
-          'ú': 'u',
-          'ü': 'u',
-        }.entries) {
-      text = text.replaceAll(pair.key, pair.value);
-    }
+  final search=TextEditingController();
+  String query='';
+  @override
+  void dispose(){search.dispose();super.dispose();}
+  String normalized(String value){
+    var text=value.toLowerCase().trim();
+    for(final pair in const {'á':'a','é':'e','í':'i','ó':'o','ú':'u','ü':'u','ñ':'n'}.entries){text=text.replaceAll(pair.key,pair.value);}
     return text;
   }
-
-
   @override
-  Widget build(BuildContext context) {
-    final c = _Palette(context);
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    final available =
-        MediaQuery.sizeOf(context).height -
-        keyboard -
-        MediaQuery.paddingOf(context).top;
-    final options =
-        widget.options
-            .where(
-              (option) => normalized(
-                option['name'].toString(),
-              ).contains(normalized(query)),
-            )
-            .toList();
-    final height = (available * .82).clamp(0.0, 700.0);
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboard),
-      child: SizedBox(
-        height: height,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 16, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: c.soft,
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Icon(Icons.list_alt_rounded, color: c.primary),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: c.ink,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Cerrar',
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.close_rounded, color: c.ink),
-                  ),
-                ],
-              ),
-            ),
-            if (widget.searchable)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: TextField(
-                  autofocus: false,
-                  textInputAction: TextInputAction.search,
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar nombre o apellido',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (value) => setState(() => query = value),
-                ),
-              ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 3, 20, 20),
-                itemCount: options.isEmpty ? 1 : options.length,
-                itemBuilder: (context, index) {
-                  if (options.isEmpty)
-                    return Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No hay resultados. Prueba con otro nombre.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: c.muted),
-                      ),
-                    );
-                  final option = options[index];
-                  final active = widget.selected == option['value'];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: Material(
-                      color:
-                          active
-                              ? (c.dark
-                                  ? const Color(0xFF263B5D)
-                                  : const Color(0xFFEAF0FA))
-                              : c.soft,
-                      borderRadius: BorderRadius.circular(16),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap:
-                            () => Navigator.pop(
-                              context,
-                              option['value'].toString(),
-                            ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 16,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  option['name'].toString(),
-                                  style: TextStyle(
-                                    color: c.ink,
-                                    fontWeight:
-                                        active
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Icon(
-                                active
-                                    ? Icons.check_circle_rounded
-                                    : Icons.chevron_right_rounded,
-                                color: c.primary,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+  Widget build(BuildContext context){
+    final c=_Palette(context);
+    final keyboard=MediaQuery.viewInsetsOf(context).bottom;
+    final available=(MediaQuery.sizeOf(context).height-keyboard-MediaQuery.paddingOf(context).top).clamp(0.0,760.0);
+    final options=widget.options.where((o)=>normalized(o['name'].toString()).contains(normalized(query))).toList();
+    return Padding(padding:EdgeInsets.only(bottom:keyboard),child:SizedBox(height:available*.9,
+      child:CustomScrollView(keyboardDismissBehavior:ScrollViewKeyboardDismissBehavior.manual,slivers:[
+        SliverPadding(padding:const EdgeInsets.fromLTRB(18,4,18,12),sliver:SliverToBoxAdapter(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          SheetHeading(title:widget.title,icon:widget.searchable?Icons.person_search_outlined:Icons.tune_rounded,
+            subtitle:'Selecciona una opción para continuar',onClose:()=>Navigator.pop(context)),
+          if(widget.searchable) ...[
+            const SizedBox(height:16),TextField(controller:search,textInputAction:TextInputAction.search,
+              decoration:InputDecoration(hintText:'Buscar nombre o apellido',prefixIcon:const Icon(Icons.search_rounded),
+                suffixIcon:query.isEmpty?null:IconButton(tooltip:'Limpiar búsqueda',onPressed:(){search.clear();setState(()=>query='');},icon:const Icon(Icons.close_rounded))),
+              onChanged:(v)=>setState(()=>query=v)),
           ],
-        ),
-      ),
-    );
+          const SizedBox(height:12),Text('${options.length} opciones disponibles',style:TextStyle(color:c.muted,fontSize:12)),
+        ]))),
+        if(options.isEmpty) SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.all(24),child:Column(children:[
+          Icon(Icons.search_off_rounded,size:38,color:c.muted),const SizedBox(height:12),const Text('No hay resultados. Prueba con otro nombre.',textAlign:TextAlign.center)]))),
+        SliverPadding(padding:const EdgeInsets.fromLTRB(18,0,18,22),sliver:SliverList(delegate:SliverChildBuilderDelegate((context,index){
+          final option=options[index],active=widget.selected==option['value'];
+          return Padding(padding:const EdgeInsets.only(bottom:10),child:PanelMotion(child:Material(
+            color:active?Theme.of(context).colorScheme.primaryContainer:c.soft,
+            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(19),side:BorderSide(color:active?c.primary.withOpacity(.45):c.line)),
+            clipBehavior:Clip.antiAlias,
+            child:InkWell(onTap:()=>Navigator.pop(context,option['value'].toString()),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[
+              Container(width:34,height:34,alignment:Alignment.center,decoration:BoxDecoration(color:c.primary.withOpacity(.08),borderRadius:BorderRadius.circular(11)),
+                child:Icon(active?Icons.check_rounded:widget.searchable?Icons.person_outline_rounded:Icons.circle_outlined,color:c.primary,size:19)),
+              const SizedBox(width:12),Expanded(child:Text(option['name'].toString(),style:TextStyle(color:c.ink,fontWeight:active?FontWeight.w800:FontWeight.w600,height:1.4))),
+              const SizedBox(width:8),Icon(active?Icons.check_circle_rounded:Icons.chevron_right_rounded,color:c.primary,size:21),
+            ]))),
+          )));
+        },childCount:options.length))),
+      ]),
+    ));
   }
 }
-
 
 class MonthSheet extends StatefulWidget {
   const MonthSheet({super.key, required this.selected});
@@ -1260,172 +1111,44 @@ class MonthSheet extends StatefulWidget {
 class _MonthSheetState extends State<MonthSheet> {
   late int year;
   @override
-  void initState() {
-    super.initState();
-    year = widget.selected.year;
-  }
-
-
+  void initState(){super.initState();year=widget.selected.year;}
   @override
-  Widget build(BuildContext context) {
-    final c = _Palette(context);
-    final available = MediaQuery.sizeOf(context).height -
-        MediaQuery.paddingOf(context).top - MediaQuery.paddingOf(context).bottom;
-    final height = (available * .75).clamp(0.0, 680.0);
-    return SizedBox(
-      height: height,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 5, 20, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 43,
-                  height: 43,
-                  decoration: BoxDecoration(
-                    color: c.soft,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(Icons.calendar_month_outlined, color: c.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Consultar período',
-                        style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w800,
-                          color: c.ink,
-                        ),
-                      ),
-                      Text(
-                        'Elige el mes del informe',
-                        style: TextStyle(fontSize: 12, color: c.muted),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Cerrar',
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close_rounded, color: c.ink),
-                ),
-              ],
+  Widget build(BuildContext context){
+    final c=_Palette(context);
+    final height=(MediaQuery.sizeOf(context).height-MediaQuery.paddingOf(context).vertical)*.86;
+    return SizedBox(height:height,child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(18,4,18,24),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      SheetHeading(title:'Tu período de consulta',icon:Icons.date_range_rounded,
+        subtitle:'Elige el año y toca el mes que deseas consultar.',onClose:()=>Navigator.pop(context)),
+      const SizedBox(height:18),
+      Container(padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:c.soft,borderRadius:BorderRadius.circular(19),border:Border.all(color:c.line)),child:Row(children:[
+        IconButton(tooltip:'Año anterior',onPressed:year>2013?()=>setState(()=>year--):null,icon:const Icon(Icons.chevron_left_rounded)),
+        Expanded(child:AnimatedSwitcher(duration:experienceDuration(context),child:Text('$year',key:ValueKey(year),textAlign:TextAlign.center,style:TextStyle(color:c.ink,fontSize:28,fontWeight:FontWeight.w800)))),
+        IconButton(tooltip:'Año siguiente',onPressed:year<2100?()=>setState(()=>year++):null,icon:const Icon(Icons.chevron_right_rounded)),
+      ])),
+      const SizedBox(height:10),Align(alignment:Alignment.centerRight,child:TextButton.icon(onPressed:()=>Navigator.pop(context,DateTime(today().year,today().month)),
+        icon:const Icon(Icons.today_rounded),label:const Text('Consultar mes actual'))),
+      const SizedBox(height:6),
+      LayoutBuilder(builder:(context,constraints){
+        final big=MediaQuery.textScalerOf(context).scale(16)>24;
+        final columns=constraints.maxWidth<240?1:big||constraints.maxWidth<340?2:3;
+        final width=(constraints.maxWidth-(columns-1)*10)/columns;
+        return Wrap(spacing:10,runSpacing:10,children:List.generate(12,(index){
+          final active=year==widget.selected.year&&index+1==widget.selected.month;
+          final now=year==today().year&&index+1==today().month;
+          return SizedBox(width:width,child:PanelMotion(child:Material(
+            color:active?brandNavy:c.soft,clipBehavior:Clip.antiAlias,
+            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(19),side:BorderSide(color:active?brandGold:now?c.primary:c.line,width:active?1.8:1)),
+            child:InkWell(onTap:()=>Navigator.pop(context,DateTime(year,index+1)),child:Padding(padding:const EdgeInsets.symmetric(horizontal:10,vertical:16),
+              child:Column(mainAxisSize:MainAxisSize.min,children:[
+                Text('${index+1}'.padLeft(2,'0'),style:TextStyle(color:active?brandGold:c.muted,fontSize:11,fontWeight:FontWeight.w700)),
+                const SizedBox(height:6),Text(monthNames[index],textAlign:TextAlign.center,style:TextStyle(color:active?Colors.white:c.ink,fontWeight:FontWeight.w700)),
+                if(active||now) ...[const SizedBox(height:6),Icon(active?Icons.check_circle_rounded:Icons.circle,size:active?15:5,color:active?brandGold:c.primary)],
+              ])),
             ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
-              decoration: BoxDecoration(
-                color: c.soft,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: c.line),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Año anterior',
-                    onPressed:
-                        year > 2013 ? () => setState(() => year--) : null,
-                    icon: Icon(Icons.chevron_left_rounded, color: year > 2013 ? c.primary : c.muted),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        '$year',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: c.ink,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Año siguiente',
-                    onPressed:
-                        year < 2100 ? () => setState(() => year++) : null,
-                    icon: Icon(Icons.chevron_right_rounded, color: year < 2100 ? c.primary : c.muted),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final bigText =
-                      MediaQuery.textScalerOf(context).scale(16) > 24;
-                  final columns = constraints.maxWidth < 215 ? 1 :
-                        (constraints.maxWidth < 310 || bigText ? 2 : 3);
-                  const spacing = 10.0;
-                  final cellWidth =
-                      (constraints.maxWidth - (columns - 1) * spacing) /
-                      columns;
-                  return SingleChildScrollView(
-                    child: Wrap(
-                      spacing: spacing,
-                      runSpacing: spacing,
-                      children: List.generate(12, (index) {
-                        final active =
-                            year == widget.selected.year &&
-                            index + 1 == widget.selected.month;
-                        return SizedBox(
-                          width: cellWidth,
-                          child: Material(
-                            color: active ? _navy : c.soft,
-                            borderRadius: BorderRadius.circular(16),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap:
-                                  () => Navigator.pop(
-                                    context,
-                                    DateTime(year, index + 1),
-                                  ),
-                              child: Container(
-                                constraints: const BoxConstraints(
-                                  minHeight: 58,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: active ? _gold : c.line,
-                                    width: active ? 1.5 : 1,
-                                  ),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  monthNames[index],
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: active ? Colors.white : c.ink,
-                                    fontWeight:
-                                        active
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+          )));
+        }));
+      }),
+      const SizedBox(height:16),Text('El mes marcado es tu consulta actual. Los saldos cambian al seleccionar otro período.',textAlign:TextAlign.center,style:TextStyle(color:c.muted,fontSize:12,height:1.4)),
+    ])));
   }
 }

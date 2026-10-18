@@ -31,7 +31,9 @@ class RentDuesCard extends StatelessWidget {
           const SizedBox(width:12),
           Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text('${member['name']}',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
-            Text(rentStatus(member),style:TextStyle(color:accent,fontWeight:FontWeight.w600)),
+            Container(margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
+              decoration:BoxDecoration(color:accent.withOpacity(.09),borderRadius:BorderRadius.circular(10)),
+              child:Text(rentStatus(member),style:TextStyle(color:accent,fontWeight:FontWeight.w700,fontSize:12))),
           ])),
         ]),
         const SizedBox(height:20),
@@ -55,7 +57,8 @@ class RentDuesCard extends StatelessWidget {
         ] else ...[
           const SizedBox(height:12),
           ExpansionTile(key:PageStorageKey<String>('rent-expanded-${member['id']}'),tilePadding:EdgeInsets.zero,childrenPadding:EdgeInsets.zero,
-            title:const Text('Ver meses y abonos'),children:[
+            title:const Text('Ver meses y abonos',style:TextStyle(fontWeight:FontWeight.w700)),
+            leading:Icon(Icons.history_rounded,color:colors.primary),children:[
               for(final p in periods) Container(
                 width:double.infinity,
                 margin:const EdgeInsets.only(bottom:12),padding:const EdgeInsets.all(14),

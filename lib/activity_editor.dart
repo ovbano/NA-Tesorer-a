@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -207,8 +208,8 @@ class _ActivityEditorState extends State<ActivityEditor> {
             decoration: BoxDecoration(color: brandGold.withOpacity(.14), border: Border.all(color: brandGold.withOpacity(.38)), borderRadius: BorderRadius.circular(99)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(icon, color: brandGold, size: 16), const SizedBox(width: 8),
-              Text(isPayment ? 'INGRESO POR ACTIVIDAD' : editing ? 'ACTUALIZACIÓN DE COMPROMISO' : 'NUEVO COMPROMISO',
-                style: const TextStyle(color: brandGold, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: .65)),
+              Flexible(child:Text(isPayment ? 'INGRESO POR ACTIVIDAD' : editing ? 'ACTUALIZACIÓN DE COMPROMISO' : 'NUEVO COMPROMISO',
+                style: const TextStyle(color: brandGold, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: .65))),
             ])),
           const SizedBox(height: 14),
           Text(heading, maxLines: 3, overflow: TextOverflow.ellipsis,
@@ -351,13 +352,14 @@ class _ActivityEditorState extends State<ActivityEditor> {
       },
       child: Scaffold(
         appBar: TreasuryHeader(title: title, overline: 'AMIGOS VERDADEROS', busy: busy),
-        body: ResponsiveBody(
+        body: BrandedBackdrop(child:ResponsiveBody(
           child: AbsorbPointer(
             absorbing: busy,
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
               children: [
+                if(busy) const BusyStrip(message:'Guardando el registro…'),
                 _hero(
                   context,
                   heading: widget.payment ? widget.account!['name'].toString() : editing ? 'Editar compromiso' : 'Un nuevo compromiso',
@@ -513,7 +515,7 @@ class _ActivityEditorState extends State<ActivityEditor> {
               ],
             ),
           ),
-        ),
+        )),
       ),
     );
   }

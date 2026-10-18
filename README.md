@@ -10,7 +10,7 @@ Como se rehízo el historial, esta rama permite probar la actualización sin mez
 ```bash
 git status --short
 git fetch origin
-git switch --create aportes-individuales-movil --track origin/codex/mobile-individual-rent-dues
+git switch --create rediseno-tesoreria --track origin/codex/mobile-experience-refresh
 flutter pub get
 flutter test
 flutter run
@@ -74,13 +74,27 @@ Todavía se utiliza la web para crear/desactivar usuarios, corregir y finalizar 
 
 No se añaden dependencias, variables de entorno ni permisos Android. Se mantiene Supabase y el inicio de sesión actuales. No hay que volver a registrar saldos ni movimientos. La RPC de historial ya está instalada en el proyecto compartido con la web.
 
+## Experiencia visual renovada
+
+- **Arranque:** la app dibuja una pantalla de bienvenida mientras inicializa Supabase y las preferencias, con estado de carga y reintento ante un fallo. No se agrega una espera artificial.
+- **Inicio de sesión:** fondo marfil/azul con trazos vectoriales locales, panel de acceso, logotipo original y estados de verificación. El formulario conserva sus controladores, foco, validaciones y autocompletado.
+- **Consulta:** nuevo panel de período con estado «Consultando…», navegación anterior/siguiente y selector de año/mes, además de acceso al mes actual. Las listas del selector y de compañeros se desplazan incluso con teclado o texto grande.
+- **Resumen:** tarjetas con respuesta al tacto/puntero y explicaciones desplegables de los fondos. Los esqueletos de carga son decorativos y no muestran cifras ficticias.
+- **Movimientos y actividades:** superficies, formularios, botones y encabezados coherentes; mensaje durante el guardado; detalle de movimiento y auditoría con encabezados identificables.
+- **Aportes:** conserva la deuda individual, la separación por meses y los abonos. Mejora la identificación de estados y la presentación del historial.
+- **Modales:** transiciones suaves, fondo atenuado, tipografía y acciones unificadas; se mantienen los valores de confirmación, cancelación, los bloqueos durante el guardado y la protección al salir sin guardar.
+- **Navegación y apariencia:** barra inferior flotante y selección animada, distribución para tablet, tema claro/oscuro/automático existente, contraste y decoración azul/dorada. La carga y las transiciones propias respetan la preferencia de reducir animaciones.
+- **PDF:** incorpora el logotipo original en su encabezado y un separador azul/dorado; conserva tablas, deudas y comprobantes.
+
+Las animaciones no guardan ni modifican registros. La decoración se dibuja localmente, sin descargas, imágenes nuevas ni dependencias adicionales.
+
 ## Validación de esta actualización
 
-Base revisada: commit `1cccf0e76c4d445ccb0b20fca77fa306056ded67` (**Ultimo avance**). Se revisaron los archivos de `lib`, las pruebas, las dependencias y la configuración Android; los cambios parten de esa base, sin recuperar commits descartados.
+Parte de `main` en `a2cbc1b111d74ce03386fb15396b3422d515a61f`, que ya incorpora los aportes individuales. Se comprobó el parseo de los **22 archivos Dart** y la resolución de sus importaciones locales. Se compararon **18 métodos de acceso y operaciones financieras** contra la versión anterior: conservan el mismo cuerpo, normalizando únicamente el nombre del contenedor visual de los diálogos.
 
-Se verificó el parseo de los 20 archivos Dart, las importaciones locales y los contratos de parámetros/campos de las RPC y sus permisos de ejecución mediante consultas de lectura. Se añadieron pruebas de listado completo, compañeros sin inicio, deuda histórica, cierres, generación de PDF y tarjetas con texto grande a 320/600 px.
+Se incluyen **nueve pruebas nuevas** para estados de carga, reducción de movimiento, callbacks en tarjetas, explicación de saldos, período a 320/600 px y texto grande en ambos temas, búsqueda/selección y cancelación de confirmaciones. Son pruebas preparadas, no ejecutadas en este entorno.
 
-No se ejecutaron `flutter analyze`, `flutter test` ni compilaciones Android aquí. La revisión automática había bloqueado Flutter por su consulta de metadatos internos de la instancia; no se intentó eludir ese bloqueo. Las pruebas nuevas están preparadas para ejecutarse en tu equipo con los comandos anteriores; la visualización final del PDF y de la app requiere esa ejecución. No se escribieron movimientos ni se modificó el esquema de Supabase.
+Pendiente ejecutar `flutter analyze`, `flutter test`, compilar Android y comprobar visualmente app y PDF. La revisión automática bloqueó anteriormente Flutter por su consulta de metadatos internos de la instancia; no se intentó eludir ese bloqueo. No se modificaron la base de datos, los permisos, las dependencias ni los datos financieros.
 
 Comprobaciones recomendadas antes de registrar datos reales:
 

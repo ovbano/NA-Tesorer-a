@@ -92,16 +92,16 @@ Future<DateTime?> _showCalendar(
       final dateTheme = DatePickerThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: 8,
+        elevation: 16,
         shadowColor: Colors.black.withOpacity(dark ? .30 : .12),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(30),
           side: BorderSide(color: scheme.outline.withOpacity(.24)),
         ),
         headerBackgroundColor: brandNavy,
         headerForegroundColor: Colors.white,
         headerHeadlineStyle: const TextStyle(
-          fontSize: 28,
+          fontSize: 30,
           fontWeight: FontWeight.w800,
           color: Colors.white,
         ),
@@ -109,13 +109,13 @@ Future<DateTime?> _showCalendar(
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: .7,
-          color: Color(0xFFE5EDFA),
+          color: brandGold,
         ),
         weekdayStyle: TextStyle(color: muted, fontWeight: FontWeight.w700),
         dayStyle: TextStyle(color: ink, fontWeight: FontWeight.w600),
         yearStyle: TextStyle(color: ink, fontWeight: FontWeight.w600),
         dayShape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         ),
         dayForegroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) return muted.withOpacity(.42);

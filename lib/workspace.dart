@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'dart:typed_data';
 
 import 'dart:ui' as ui;
@@ -124,7 +125,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
     final controller=TextEditingController();
 
-    final value=await showDialog<String>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:Text(title),content:TextField(controller:controller,obscureText:password,decoration:InputDecoration(labelText:password?'Contraseña':null,hintText:password?null:label,helperText:password?label:null,helperMaxLines:3),maxLines:password?1:3),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,controller.text),child:const Text('Continuar'))]));
+    final value=await showExperienceDialog<String>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:Text(title),content:TextField(controller:controller,obscureText:password,decoration:InputDecoration(labelText:password?'Contraseña':null,hintText:password?null:label,helperText:password?label:null,helperMaxLines:3),maxLines:password?1:3),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,controller.text),child:const Text('Continuar'))]));
 
     // Route disposal follows its reverse animation; avoid disposing a focused controller early.
 
@@ -162,7 +163,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
     final note=TextEditingController(text:settings?['note']??''),reason=TextEditingController();DateTime start=settings==null?month:DateTime.parse(settings!['start_month']);String? feedback;bool saving=false;
 
-    await showDialog<void>(context:context,barrierDismissible:false,builder:(c)=>StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(scrollable:true,title:Text(settings==null?'Registrar fondos iniciales':'Corregir fondos iniciales'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('Registra dinero físico verificado. General: gastos del grupo. Local: dinero reservado para arriendo. No incluyas deudas pendientes.'),TextButton(onPressed:saving?null:()async{final d=await showDatePicker(context:c,initialDate:start,firstDate:DateTime(2013),lastDate:today());if(d!=null)set(()=>start=DateTime(d.year,d.month));},child:Text('Mes de inicio: ${period(start).substring(0,7)}')),TextField(controller:general,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Gastos del grupo · USD')),const SizedBox(height:12),TextField(controller:local,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Apartado para el local · USD')),const SizedBox(height:12),TextField(controller:note,decoration:const InputDecoration(labelText:'Nota')),if(settings!=null)...[const SizedBox(height:12),const Text('La corrección recalcula los saldos y reabre meses cerrados. Revisa después los informes.'),TextField(controller:reason,decoration:const InputDecoration(labelText:'Motivo de la corrección'))],if(feedback!=null)Text(feedback!,style:const TextStyle(color:Colors.red))])),actions:[TextButton(onPressed:saving?null:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:saving?null:()async{try{final a=cents(general.text),b=cents(local.text);if(settings!=null&&reason.text.trim().length<5)throw const FormatException('Explica el motivo de la corrección.');set(()=>saving=true);await widget.repo.command(settings==null?'setup':'initial_update',{'start_month':period(start),'opening_general':a,'opening_rent':b,'note':note.text.trim(),'reason':reason.text.trim()});if(c.mounted)Navigator.pop(c);await reload();}catch(e){if(c.mounted)set((){feedback=message(e);saving=false;});}},child:Text(saving?'Guardando…':'Guardar'))]))));
+    await showExperienceDialog<void>(context:context,barrierDismissible:false,builder:(c)=>StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(scrollable:true,title:Text(settings==null?'Registrar fondos iniciales':'Corregir fondos iniciales'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('Registra dinero físico verificado. General: gastos del grupo. Local: dinero reservado para arriendo. No incluyas deudas pendientes.'),TextButton(onPressed:saving?null:()async{final d=await showDatePicker(context:c,initialDate:start,firstDate:DateTime(2013),lastDate:today());if(d!=null)set(()=>start=DateTime(d.year,d.month));},child:Text('Mes de inicio: ${period(start).substring(0,7)}')),TextField(controller:general,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Gastos del grupo · USD')),const SizedBox(height:12),TextField(controller:local,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Apartado para el local · USD')),const SizedBox(height:12),TextField(controller:note,decoration:const InputDecoration(labelText:'Nota')),if(settings!=null)...[const SizedBox(height:12),const Text('La corrección recalcula los saldos y reabre meses cerrados. Revisa después los informes.'),TextField(controller:reason,decoration:const InputDecoration(labelText:'Motivo de la corrección'))],if(feedback!=null)Text(feedback!,style:const TextStyle(color:Colors.red))])),actions:[TextButton(onPressed:saving?null:()=>Navigator.pop(c),child:const Text('Cancelar')),FilledButton(onPressed:saving?null:()async{try{final a=cents(general.text),b=cents(local.text);if(settings!=null&&reason.text.trim().length<5)throw const FormatException('Explica el motivo de la corrección.');set(()=>saving=true);await widget.repo.command(settings==null?'setup':'initial_update',{'start_month':period(start),'opening_general':a,'opening_rent':b,'note':note.text.trim(),'reason':reason.text.trim()});if(c.mounted)Navigator.pop(c);await reload();}catch(e){if(c.mounted)set((){feedback=message(e);saving=false;});}},child:Text(saving?'Guardando…':'Guardar'))]))));
 
     await Future<void>.delayed(const Duration(milliseconds:300));for(final controller in [general,local,note,reason]){controller.dispose();}
 
@@ -173,7 +174,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
     if (report?['configured'] != true || working) return;
 
     // 1. Seleccionar cómo se generará el informe.
-    final includePhotos = await showDialog<bool>(
+    final includePhotos = await showExperienceDialog<bool>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
@@ -540,7 +541,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
     final path=entry['receipt_path'];if(path==null)return;
 
-    await task(()async{final data=await widget.repo.client.storage.from('treasury-receipts').download(path).timeout(const Duration(seconds:20));if(!mounted)return;if(path.toString().endsWith('.pdf')){await Printing.sharePdf(bytes:data,filename:'Comprobante.pdf');}else{await showDialog<void>(context:context,builder:(c)=>Dialog(child:SizedBox(height:MediaQuery.sizeOf(c).height*.75,child:Column(children:[Expanded(child:InteractiveViewer(child:Image.memory(data,errorBuilder:(_,e,s)=>const Padding(padding:EdgeInsets.all(24),child:Text('No se pudo mostrar esta imagen.'))))),TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cerrar'))]))));}});
+    await task(()async{final data=await widget.repo.client.storage.from('treasury-receipts').download(path).timeout(const Duration(seconds:20));if(!mounted)return;if(path.toString().endsWith('.pdf')){await Printing.sharePdf(bytes:data,filename:'Comprobante.pdf');}else{await showExperienceDialog<void>(context:context,builder:(c)=>Dialog(child:SizedBox(height:MediaQuery.sizeOf(c).height*.75,child:Column(children:[Expanded(child:InteractiveViewer(child:Image.memory(data,errorBuilder:(_,e,s)=>const Padding(padding:EdgeInsets.all(24),child:Text('No se pudo mostrar esta imagen.'))))),TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cerrar'))]))));}});
 
   }
 
@@ -570,30 +571,10 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(children: [
-                        Container(
-                          width: 48, height: 48,
-                          decoration: BoxDecoration(
-                            color: tint,
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Icon(
-                            income ? Icons.south_west_rounded : Icons.north_east_rounded,
-                            color: tone, size: 27,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text(
-                          income ? 'Detalle del ingreso' : 'Detalle del egreso',
-                          style: TextStyle(color: scheme.onSurface,
-                            fontSize: 20, fontWeight: FontWeight.w800),
-                        )),
-                        IconButton(
-                          tooltip: 'Cerrar detalle',
-                          onPressed: () => Navigator.pop(sheetContext),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ]),
+                      SheetHeading(title:income?'Detalle del ingreso':'Detalle del egreso',
+                        icon:income?Icons.south_west_rounded:Icons.north_east_rounded,
+                        subtitle:'Movimiento del fondo ${entry['fund']=='rent'?'del local':'general'}',
+                        onClose:()=>Navigator.pop(sheetContext)),
                       const SizedBox(height: 19),
                       Container(
                         padding: const EdgeInsets.all(20),
@@ -677,7 +658,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
                         TextButton.icon(
                           onPressed: () async {
                             Navigator.pop(sheetContext);
-                            final confirmed = await showDialog<bool>(
+                            final confirmed = await showExperienceDialog<bool>(
                               context: context,
                               builder: (d) => AlertDialog(
                                 scrollable: true,
@@ -756,7 +737,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
       if(!mounted)return;
 
-      final confirmed=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:const Text('Confirmar cierre'),content:Text('Saldo calculado: ${money(total)}\nDinero contado: ${money(counted)}\nDiferencia: ${money(counted-total)}'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Confirmar'))]));
+      final confirmed=await showExperienceDialog<bool>(context:context,builder:(c)=>AlertDialog(scrollable:true,title:const Text('Confirmar cierre'),content:Text('Saldo calculado: ${money(total)}\nDinero contado: ${money(counted)}\nDiferencia: ${money(counted-total)}'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Confirmar'))]));
 
       if(confirmed!=true)return;final note=await ask('Nota del cierre','Explica diferencias o deja una observación');if(note==null)return;
 
@@ -1155,7 +1136,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
     final amount=TextEditingController(text:'12.00');
     String? feedback;
     bool saving=false;
-    await showDialog<void>(context:context,barrierDismissible:false,builder:(dialogContext)=>
+    await showExperienceDialog<void>(context:context,barrierDismissible:false,builder:(dialogContext)=>
       StatefulBuilder(builder:(c,set)=>PopScope(canPop:!saving,child:AlertDialog(
         scrollable:true,title:Text('Cuota de ${person['name']}'),
         content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1396,7 +1377,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   }
 
-  Future<void> audit()async{await task(()async{final data=await widget.repo.client.from('treasury_audit').select('action,actor_name,happened_at').order('id',ascending:false).limit(50);if(!mounted)return;await showModalBottomSheet<void>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>SizedBox(height:MediaQuery.sizeOf(c).height*.8,child:ListView(padding:const EdgeInsets.all(20),children:[const Text('Últimos 50 cambios',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),...data.map((a)=>ListTile(leading:const Icon(Icons.history),title:Text(a['actor_name']??'Usuario'),subtitle:Text('${a['action']} · ${a['happened_at']}')))])));});}
+  Future<void> audit()async{await task(()async{final data=await widget.repo.client.from('treasury_audit').select('action,actor_name,happened_at').order('id',ascending:false).limit(50);if(!mounted)return;await showModalBottomSheet<void>(context:context,isScrollControlled:true,useSafeArea:true,builder:(c)=>SizedBox(height:MediaQuery.sizeOf(c).height*.8,child:ListView(padding:const EdgeInsets.all(20),children:[SheetHeading(title:'Historial de cambios',subtitle:'Últimos 50 registros de auditoría',icon:Icons.history_rounded,onClose:()=>Navigator.pop(c)),const SizedBox(height:16),...data.map((a)=>ListTile(leading:const Icon(Icons.history),title:Text(a['actor_name']??'Usuario'),subtitle:Text('${a['action']} · ${a['happened_at']}')))])));});}
 
   List<Widget> more()=>[
 
@@ -1436,41 +1417,17 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
   }
 
-  List<Widget> content() => error!=null ? [Text(error!,style:TextStyle(color:Theme.of(context).colorScheme.error)),FilledButton(onPressed:reload,child:const Text('Reintentar'))]
+  List<Widget> content() => error!=null ? [const WorkspaceHeadline(title:'No pudimos cargar este período',icon:Icons.cloud_off_rounded),InfoNote(error!),WorkspaceActionButton(onPressed:reload,icon:Icons.refresh_rounded,title:'Volver a intentar')]
 
     : report?['configured']!=true ? [const GroupBanner(),const SizedBox(height:24),Text(settings==null?'Registra los fondos iniciales para comenzar.':'Este mes es anterior al inicio de Tesorería.'),if(writable&&settings==null)FilledButton(onPressed:initialFunds,child:const Text('Registrar fondos'))]
 
     : section==0?overview():section==1?movementView():section==2?duesView():more();
 
-  Widget periodControl() {
-
-    final p = WorkspacePalette(context);
-
-    return Padding(padding: const EdgeInsets.fromLTRB(16, 13, 16, 15), child: Row(children: [
-
-      _periodArrow(Icons.chevron_left_rounded, 'Mes anterior', working||loading?null:()=>shiftMonth(-1), p),
-
-      const SizedBox(width: 9),
-
-      Expanded(child: SelectionField(label:'PERÍODO DE CONSULTA',value:monthLabel(month),icon:Icons.calendar_month_rounded,onTap:working||loading?null:chooseMonth)),
-
-      const SizedBox(width: 9),
-
-      _periodArrow(Icons.chevron_right_rounded, 'Mes siguiente', working||loading?null:()=>shiftMonth(1), p),
-
-    ]));
-
-  }
-
-  Widget _periodArrow(IconData icon, String tip, VoidCallback? action, WorkspacePalette p) =>
-
-    Material(color:p.soft, borderRadius:BorderRadius.circular(15), child:IconButton(
-
-      tooltip:tip, onPressed:action, icon:Icon(icon, color:action==null?p.muted:p.accent),
-
-      constraints:const BoxConstraints(minWidth:45,minHeight:51),
-
-    ));
+  Widget periodControl()=>PeriodPanel(label:monthLabel(month),loading:loading,
+    current:period(month)==period(today()),
+    onChoose:working||loading?null:chooseMonth,
+    onPrevious:working||loading?null:()=>shiftMonth(-1),
+    onNext:working||loading?null:()=>shiftMonth(1));
 
   @override Widget build(BuildContext context) {
 
@@ -1518,7 +1475,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
               Color(0xFF123875),
 
-              Color(0xFF174684),
+              Color(0xFF274F7F),
 
             ],
 
@@ -1952,7 +1909,7 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
     ),
 
-      body:SafeArea(child:Row(children:[if(wide)...[
+      body:SafeArea(child:BrandedBackdrop(child:Row(children:[if(wide)...[
 
         TreasuryNavigationRail(selectedIndex: section, onSelect: selectSection),
 
@@ -1960,11 +1917,11 @@ class _WorkspaceState extends State<Workspace> with WidgetsBindingObserver {
 
       ],Expanded(child:ResponsiveBody(child:Column(children:[
 
-        if(!compactHeight)periodControl(),if(working)const LinearProgressIndicator(),
+        if(!compactHeight)periodControl(),if(working)const BusyStrip(message:'Procesando tu solicitud…'),
 
-        Expanded(child:loading?const Center(child:CircularProgressIndicator()):AnimatedSwitcher(duration:MediaQuery.of(context).disableAnimations?Duration.zero:const Duration(milliseconds:180),child:RefreshIndicator(key:ValueKey(section),onRefresh:reload,child:ListView(key:PageStorageKey('treasury-section-$section'),physics:const AlwaysScrollableScrollPhysics(),padding:EdgeInsets.fromLTRB(MediaQuery.sizeOf(context).width < 360 ? 12 : 20, 0, MediaQuery.sizeOf(context).width < 360 ? 12 : 20, 24),children:[if(compactHeight)periodControl(),...content()])))),
+        Expanded(child:loading?TreasuryLoading(title:'Consultando ${monthLabel(month)}',detail:'Cargando saldos, movimientos y aportes del grupo.',skeleton:true):AnimatedSwitcher(duration:MediaQuery.of(context).disableAnimations?Duration.zero:const Duration(milliseconds:180),child:RefreshIndicator(key:ValueKey(section),onRefresh:reload,child:ListView(key:PageStorageKey('treasury-section-$section'),physics:const AlwaysScrollableScrollPhysics(),padding:EdgeInsets.fromLTRB(MediaQuery.sizeOf(context).width < 360 ? 12 : 20, 0, MediaQuery.sizeOf(context).width < 360 ? 12 : 20, 24),children:[if(compactHeight)periodControl(),...content()])))),
 
-      ]))),])),
+      ]))),]))),
 
       bottomNavigationBar:wide?null:TreasuryNavigationBar(selectedIndex: section, onSelect: selectSection, compactLabels: largeText),
 

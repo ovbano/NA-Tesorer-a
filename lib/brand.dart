@@ -122,13 +122,15 @@ ThemeData groupTheme(Brightness brightness) {
 
   final base = ThemeData(useMaterial3: true, brightness: brightness, colorScheme: scheme);
 
-  final radius = BorderRadius.circular(18);
+  final radius = BorderRadius.circular(20);
 
   final outlineBorder = OutlineInputBorder(borderRadius: radius);
 
   return base.copyWith(
+    visualDensity: VisualDensity.standard,
+    tooltipTheme: TooltipThemeData(waitDuration:const Duration(milliseconds:350),decoration:BoxDecoration(color:brandNavy,borderRadius:BorderRadius.circular(10)),textStyle:const TextStyle(color:Colors.white)),
 
-    scaffoldBackgroundColor: dark ? _darkBackground : const Color(0xFFF2F5FA),
+    scaffoldBackgroundColor: dark ? _darkBackground : const Color(0xFFF5F4EF),
 
     canvasColor: surface,
 
@@ -171,7 +173,8 @@ ThemeData groupTheme(Brightness brightness) {
     cardTheme: CardThemeData(
 
       color: surface,
-
+      surfaceTintColor: Colors.transparent,
+      shadowColor: brandNavy.withOpacity(.08),
       elevation: 0,
 
       margin: EdgeInsets.zero,
@@ -190,7 +193,7 @@ ThemeData groupTheme(Brightness brightness) {
 
       filled: true,
 
-      fillColor: dark ? const Color(0xFF1B2C46) : const Color(0xFFF9FBFE),
+      fillColor: dark ? const Color(0xFF192C47) : const Color(0xFFFAFAF7),
 
       contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
 
@@ -228,7 +231,7 @@ ThemeData groupTheme(Brightness brightness) {
 
         disabledForegroundColor: onSurface.withOpacity(.48),
 
-        minimumSize: const Size(48, 54),
+        minimumSize: const Size(48, 56),
 
         padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 14),
 
@@ -250,7 +253,7 @@ ThemeData groupTheme(Brightness brightness) {
 
         side: BorderSide(color: outline.withOpacity(.7)),
 
-        minimumSize: const Size(48, 52),
+        minimumSize: const Size(48, 54),
 
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
 
@@ -321,6 +324,8 @@ ThemeData groupTheme(Brightness brightness) {
       modalBackgroundColor: surface,
 
       showDragHandle: true,
+      modalElevation: 16,
+      clipBehavior: Clip.antiAlias,
 
       dragHandleColor: outline,
 
@@ -332,13 +337,19 @@ ThemeData groupTheme(Brightness brightness) {
 
       backgroundColor: surface,
 
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      surfaceTintColor: Colors.transparent,
+      elevation: 18,
+      titleTextStyle: TextStyle(color:onSurface,fontSize:23,fontWeight:FontWeight.w800,height:1.25),
+      contentTextStyle: TextStyle(color:scheme.onSurfaceVariant,fontSize:15,height:1.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30),side:BorderSide(color:outline.withOpacity(.32))),
 
     ),
 
     snackBarTheme: SnackBarThemeData(
 
       behavior: SnackBarBehavior.floating,
+      elevation: 8,
+      insetPadding: const EdgeInsets.fromLTRB(16,8,16,16),
 
       backgroundColor: dark ? const Color(0xFF2A3E5A) : brandNavy,
 
@@ -349,6 +360,14 @@ ThemeData groupTheme(Brightness brightness) {
     ),
 
     listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 8)),
+
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor:surface,surfaceTintColor:Colors.transparent,
+      headerBackgroundColor:brandNavy,headerForegroundColor:Colors.white,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(30),side:BorderSide(color:outline.withOpacity(.3))),
+      todayBorder:BorderSide(color:dark?brandGold:brandNavy,width:1.7),
+      dayShape:WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
+    ),
 
     progressIndicatorTheme: ProgressIndicatorThemeData(
 
@@ -526,7 +545,7 @@ class GroupBanner extends StatelessWidget {
 
     return Container(
 
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 22),
 
       clipBehavior: Clip.antiAlias,
 
@@ -542,11 +561,11 @@ class GroupBanner extends StatelessWidget {
 
         ),
 
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(30),
 
         border: Border.all(color: brandGold.withOpacity(.55)),
 
-        boxShadow: [BoxShadow(color: brandNavy.withOpacity(.14), blurRadius: 20, offset: const Offset(0, 8))],
+        boxShadow: [BoxShadow(color: brandNavy.withOpacity(.14), blurRadius: 28, offset: const Offset(0, 8))],
 
       ),
 
@@ -562,7 +581,7 @@ class GroupBanner extends StatelessWidget {
 
           child: Container(width: 150, height: 150,
 
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(.06), width: 24)))),
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(.035), width: 24)))),
 
         Padding(
 
@@ -594,7 +613,7 @@ class GroupBanner extends StatelessWidget {
 
               ]),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             Container(height: 1, color: brandGold.withOpacity(.38)),
 

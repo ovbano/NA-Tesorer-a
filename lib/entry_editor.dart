@@ -1,3 +1,4 @@
+import 'experience.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -302,7 +303,9 @@ class _EntryEditorState extends State<EntryEditor> {
       child: Scaffold(
         resizeToAvoidBottomInset: true,
         appBar: AppBar(
-          toolbarHeight: 74,
+          flexibleSpace:DecoratedBox(decoration:const BoxDecoration(gradient:LinearGradient(colors:[brandNavy,Color(0xFF234C7C)])),
+            child:IgnorePointer(child:CustomPaint(painter:BrandPattern(color:brandGold.withOpacity(.10))))),
+          toolbarHeight: MediaQuery.textScalerOf(context).scale(17)>23?94:78,
           backgroundColor: brandNavy,
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
@@ -337,13 +340,14 @@ class _EntryEditorState extends State<EntryEditor> {
                 color: income ? const Color(0xFF22AC73) : const Color(0xFFE65A60)),
           ),
         ),
-        body: ResponsiveBody(
+        body: BrandedBackdrop(child:ResponsiveBody(
           child: AbsorbPointer(
             absorbing: busy,
             child: ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
               padding: const EdgeInsets.fromLTRB(16, 17, 16, 24),
               children: [
+                if(busy) const BusyStrip(message:'Guardando el registro…'),
                 _summaryBanner(),
                 const InfoNote('General: gastos del grupo. Local: dinero reservado para el arriendo. Puedes guardar un borrador y completarlo después.'),
                 FormSection(
@@ -480,7 +484,7 @@ class _EntryEditorState extends State<EntryEditor> {
               ],
             ),
           ),
-        ),
+        )),
         bottomNavigationBar: compact ? null : SafeArea(top: false, child: _actions()),
       ),
     );
