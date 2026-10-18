@@ -1,4 +1,5 @@
 import 'experience.dart';
+import 'ux_components.dart';
 import 'package:flutter/material.dart';
 import 'package:na_tesoreria/brand.dart';
 import 'treasury.dart';
@@ -472,261 +473,54 @@ class _ProgressMeter extends StatelessWidget {
 
 
 class ActivityCard extends StatelessWidget {
-  const ActivityCard({
-    super.key,
-    required this.account,
-    this.onPay,
-    this.onEdit,
-    required this.onPayment,
-  });
+  const ActivityCard({super.key,required this.account,this.onPay,this.onEdit,required this.onPayment});
   final Json account;
-  final VoidCallback? onPay, onEdit;
+  final VoidCallback? onPay,onEdit;
   final ValueChanged<Json> onPayment;
-  @override
-  Widget build(BuildContext context) {
-    final c = _Palette(context);
-    final pending = (account['pending_cents'] as num).toInt();
-    final original = (account['original_cents'] as num).toInt();
-    final historical = (account['historical_paid_cents'] as num).toInt();
-    final received = (account['paid_cents'] as num).toInt();
-    final progress =
-        original > 0
-            ? ((historical + received) / original).clamp(0.0, 1.0).toDouble()
-            : 0.0;
-    final payments = rows(account['payments']);
-    return LedgerPanel(
-      padding: EdgeInsets.zero,
-      child: ExpansionTile(
-        // Must never share a PageStorageKey with scroll-position storage.
-        key: PageStorageKey<String>('activity-expanded-${account['id']}'),
-        tilePadding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
-        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 22),
-        shape: const RoundedRectangleBorder(),
-        collapsedShape: const RoundedRectangleBorder(),
-        iconColor: c.primary,
-        collapsedIconColor: c.primary,
-        title: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: c.soft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                Icons.volunteer_activism_outlined,
-                color: c.primary,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Text(
-                account['name'].toString(),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: c.ink,
-                  height: 1.3,
-                ),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                account['activity'].toString(),
-                style: TextStyle(color: c.muted, height: 1.45),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: c.soft,
-                  borderRadius: BorderRadius.circular(17),
-                  border: Border.all(color: c.line),
-                ),
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    MoneyCaption(
-                      pending > 0 ? 'Por cobrar' : 'Saldo pendiente',
-                      pending,
-                      emphasis: true,
-                    ),
-                    StatusPill(
-                      pending > 0 ? 'Pendiente de actividad' : 'Cancelado',
-                      complete: pending == 0,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-
-        children: [
-          Divider(color: c.line, height: 26),
-
-
-          _FinanceGrid(
-            items: [
-              _FinanceCell('Deuda original', original),
-              _FinanceCell('Abonos históricos', historical),
-              _FinanceCell('Pagos en el sistema', received),
-            ],
-          ),
-
-
-          const SizedBox(height: 19),
-
-
-          _ProgressMeter(value: progress, label: 'Compromiso cubierto'),
-
-
-          if (account['activity_date'] != null) ...[
-            const SizedBox(height: 14),
-            _DetailLine(
-              Icons.event_outlined,
-              'Actividad: ${account['activity_date']}',
-            ),
-          ],
-
-
-          if (account['note']?.toString().isNotEmpty == true) ...[
-            const SizedBox(height: 10),
-            _DetailLine(Icons.notes_rounded, account['note'].toString()),
-          ],
-
-
-          const SizedBox(height: 18),
-
-
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              if (pending > 0 && onPay != null)
-                FilledButton.icon(
-                  onPressed: onPay,
-                  icon: const Icon(Icons.add_card_outlined),
-                  label: const Text('Registrar pago'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _navy,
-                    foregroundColor: Colors.white,
-                    iconColor: Colors.white,
-                  ),
-                ),
-
-
-              if (onEdit != null)
-                OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Corregir'),
-                ),
-            ],
-          ),
-
-
-          const SizedBox(height: 22),
-
-
-          Text(
-            'Historial de pagos',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: c.ink,
-            ),
-          ),
-
-
-          const SizedBox(height: 12),
-
-
-          if (payments.isEmpty)
-            Text(
-              'Aún no hay pagos registrados en la app.',
-              style: TextStyle(color: c.muted, height: 1.5),
-            ),
-
-
-          for (final payment in payments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 9),
-              child: Material(
-                color: c.soft,
-                borderRadius: BorderRadius.circular(15),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(15),
-                  onTap: () => onPayment(payment),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 13,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.receipt_long_outlined,
-                          color: c.primary,
-                          size: 22,
-                        ),
-
-
-                        const SizedBox(width: 12),
-
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                money(payment['amount_cents']),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: c.ink,
-                                ),
-                              ),
-
-
-                              const SizedBox(height: 4),
-
-
-                              Text(
-                                '${payment['entry_date']} · Ver comprobante',
-                                style: TextStyle(color: c.muted, height: 1.45),
-                              ),
-                            ],
-                          ),
-                        ),
-
-
-                        Icon(Icons.chevron_right_rounded, color: c.primary),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+  @override Widget build(BuildContext context){
+    final c=_Palette(context);
+    final pending=(account['pending_cents'] as num).toInt();
+    final original=(account['original_cents'] as num).toInt();
+    final historical=(account['historical_paid_cents'] as num).toInt();
+    final received=(account['paid_cents'] as num).toInt();
+    final progress=original>0?((historical+received)/original).clamp(0.0,1.0).toDouble():0.0;
+    final payments=rows(account['payments']);
+    return LedgerPanel(padding:EdgeInsets.zero,child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Padding(padding:const EdgeInsets.fromLTRB(18,18,18,0),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        StatusPill(pending>0?'Pendiente de actividad':'Cancelado',complete:pending==0),
+        const SizedBox(height:12),Text(account['activity']??'Actividad del grupo',style:TextStyle(color:c.muted,fontSize:13,height:1.4)),
+        const SizedBox(height:14),Text('Por cobrar',style:TextStyle(color:c.muted,fontSize:12)),
+        const SizedBox(height:4),Text(money(pending),style:TextStyle(color:pending>0?c.ink:c.positive,fontSize:28,fontWeight:FontWeight.w900)),
+      ])),
+      ExpansionTile(key:PageStorageKey<String>('activity-expanded-${account['id']}'),
+        tilePadding:const EdgeInsets.symmetric(horizontal:18,vertical:4),childrenPadding:const EdgeInsets.fromLTRB(18,0,18,18),
+        shape:const RoundedRectangleBorder(),collapsedShape:const RoundedRectangleBorder(),
+        title:Text(account['name'].toString(),style:TextStyle(color:c.ink,fontSize:19,fontWeight:FontWeight.w800,height:1.3)),
+        subtitle:Text('Ver compromiso, abonos y comprobantes',style:TextStyle(color:c.muted,fontSize:12,height:1.4)),
+        children:[
+          const SizedBox(height:12),FactsGrid(facts:[UxFact('Compromiso original',money(original)),UxFact('Abonos históricos',money(historical)),UxFact('Pagos en el sistema',money(received))]),
+          const SizedBox(height:18),_ProgressMeter(value:progress,label:'Compromiso cubierto'),
+          if(account['activity_date']!=null)Padding(padding:const EdgeInsets.only(top:12),child:_DetailLine(Icons.event_outlined,'Actividad: ${account['activity_date']}')),
+          if(account['note']?.toString().isNotEmpty==true)Padding(padding:const EdgeInsets.only(top:12),child:_DetailLine(Icons.notes_rounded,account['note'].toString())),
+          const SizedBox(height:18),Wrap(spacing:10,runSpacing:10,children:[
+            if(pending>0&&onPay!=null)FilledButton.icon(onPressed:onPay,icon:const Icon(Icons.add_card_outlined),label:const Text('Registrar pago')),
+            if(onEdit!=null)OutlinedButton.icon(onPressed:onEdit,icon:const Icon(Icons.edit_outlined),label:const Text('Corregir')),
+          ]),
+          const SizedBox(height:20),Text('Historial de pagos',style:TextStyle(color:c.ink,fontSize:17,fontWeight:FontWeight.w800)),
+          const SizedBox(height:12),
+          if(payments.isEmpty)Text('Aún no hay pagos registrados en la app.',style:TextStyle(color:c.muted,height:1.5)),
+          for(final payment in payments)Padding(padding:const EdgeInsets.only(bottom:10),child:Material(color:c.soft,borderRadius:BorderRadius.circular(16),child:InkWell(
+            borderRadius:BorderRadius.circular(16),onTap:()=>onPayment(payment),child:Padding(padding:const EdgeInsets.all(14),child:Row(children:[
+              Icon(Icons.receipt_long_outlined,color:c.primary),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text(money(payment['amount_cents']),style:TextStyle(color:c.ink,fontSize:18,fontWeight:FontWeight.w800)),
+                const SizedBox(height:4),Text('${payment['entry_date']} · Abrir movimiento',style:TextStyle(color:c.muted,fontSize:12,height:1.4)),
+              ])),Icon(Icons.chevron_right_rounded,color:c.primary),
+            ]))),
+          )),
+        ]),
+    ]));
   }
 }
-
 
 class _DetailLine extends StatelessWidget {
   const _DetailLine(this.icon, this.text);
@@ -829,38 +623,16 @@ class ActionCard extends StatelessWidget {
 
 
 class FormSection extends StatelessWidget {
-  const FormSection({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.children,
-    this.subtitle,
-  });
+  const FormSection({super.key,required this.title,required this.icon,required this.children,this.subtitle});
   final String title;
   final String? subtitle;
   final IconData icon;
   final List<Widget> children;
-  @override
-  Widget build(BuildContext context) {
-    final c = _Palette(context);
-    return LedgerPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SheetHeading(title:title,icon:icon,subtitle:subtitle),
-          const SizedBox(height: 18),
-          Divider(color: c.line, height: 1),
-          const SizedBox(height: 18),
-          ...children,
-        ],
-      ),
-    );
-  }
+  @override Widget build(BuildContext context)=>UxSection(title:title,description:subtitle,icon:icon,
+    child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:children));
 }
 
-
-
-  class SelectionField extends StatelessWidget {
+class SelectionField extends StatelessWidget {
     const SelectionField({
       super.key,
       required this.label,

@@ -1,4 +1,5 @@
 import 'experience.dart';
+import 'ux_components.dart';
 import 'package:flutter/material.dart';
 import 'brand.dart';
 
@@ -331,258 +332,68 @@ class WorkspaceActionButton extends StatelessWidget {
 }
 
 class WorkspaceSearchPanel extends StatelessWidget {
-  const WorkspaceSearchPanel({
-    super.key,
-    required this.hint,
-    this.controller,
-    required this.onChanged,
-    this.onClear,
-    required this.filters,
-    required this.selected,
-    required this.onFilter,
-    this.countLabel,
-  });
-
+  const WorkspaceSearchPanel({super.key,required this.hint,this.controller,required this.onChanged,this.onClear,
+    required this.filters,required this.selected,required this.onFilter,this.countLabel});
   final String hint;
   final TextEditingController? controller;
   final ValueChanged<String> onChanged;
   final VoidCallback? onClear;
-  final Map<String, String> filters;
+  final Map<String,String> filters;
   final String selected;
   final ValueChanged<String> onFilter;
   final String? countLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = WorkspacePalette(context);
-    final searchIsActive = controller?.text.isNotEmpty ?? false;
-    return WorkspaceSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: p.soft,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.tune_rounded, color: p.accent, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Buscar y filtrar',
-                  style: TextStyle(color: p.ink, fontSize: 17, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: controller,
-            onChanged: onChanged,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: hint,
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: onClear != null && searchIsActive
-                  ? IconButton(
-                      tooltip: 'Limpiar búsqueda',
-                      onPressed: onClear,
-                      icon: const Icon(Icons.close_rounded),
-                    )
-                  : null,
-            ),
-          ),
-          if (filters.isNotEmpty) ...[
-            const SizedBox(height: 15),
-            Builder(
-              builder: (context) {
-                // Chips distribuidos en líneas, no en una fila cortada.
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final entry in filters.entries)
-                      ChoiceChip(
-                        label: Text(entry.value),
-                        selected: selected == entry.key,
-                        showCheckmark: false,
-                        onSelected: (_) => onFilter(entry.key),
-                        backgroundColor: p.canvas,
-                        selectedColor: p.selectedBackground,
-                        side: BorderSide(
-                          color: selected == entry.key ? p.accent : p.line,
-                          width: selected == entry.key ? 1.5 : 1,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        labelStyle: TextStyle(
-                          color: selected == entry.key ? p.selectedInk : p.ink,
-                          fontWeight: selected == entry.key
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
-          if (countLabel != null && countLabel!.trim().isNotEmpty) ...[
-            const SizedBox(height: 15),
-            Divider(color: p.line.withOpacity(.75), height: 1),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.filter_list_rounded, size: 17, color: p.muted),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    countLabel!,
-                    style: TextStyle(fontSize: 13, color: p.muted, height: 1.4),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
+  @override Widget build(BuildContext context){
+    final c=Theme.of(context).colorScheme;
+    final active=(controller?.text.isNotEmpty??false)||selected!='all';
+    return WorkspaceSurface(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Wrap(alignment:WrapAlignment.spaceBetween,crossAxisAlignment:WrapCrossAlignment.center,spacing:12,runSpacing:6,children:[
+        Text('Encuentra un registro',style:TextStyle(color:c.onSurface,fontWeight:FontWeight.w800,fontSize:18)),
+        if(active)TextButton.icon(onPressed:(){controller?.clear();if(onClear!=null){onClear!();}else{onChanged('');}onFilter('all');},icon:const Icon(Icons.restart_alt_rounded,size:18),label:const Text('Restablecer')),
+      ]),
+      const SizedBox(height:12),TextField(controller:controller,onChanged:onChanged,textInputAction:TextInputAction.search,
+        decoration:InputDecoration(labelText:'Buscar',hintText:hint,prefixIcon:const Icon(Icons.search_rounded),
+          suffixIcon:controller?.text.isNotEmpty==true?IconButton(tooltip:'Limpiar búsqueda',onPressed:(){controller?.clear();if(onClear!=null){onClear!();}else{onChanged('');}},icon:const Icon(Icons.close_rounded)):null)),
+      if(filters.isNotEmpty)...[
+        const SizedBox(height:16),Text('Mostrar',style:TextStyle(color:c.onSurfaceVariant,fontSize:12,fontWeight:FontWeight.w700)),
+        const SizedBox(height:8),Wrap(spacing:8,runSpacing:9,children:[for(final entry in filters.entries)
+          FilterChip(label:Text(entry.value),selected:selected==entry.key,showCheckmark:true,
+            selectedColor:c.primaryContainer,checkmarkColor:c.onPrimaryContainer,
+            labelStyle:TextStyle(color:selected==entry.key?c.onPrimaryContainer:c.onSurface,fontWeight:selected==entry.key?FontWeight.w800:FontWeight.w500),
+            onSelected:(_)=>onFilter(entry.key))]),
+      ],
+      if(countLabel!=null)...[const SizedBox(height:14),Divider(height:1,color:c.outlineVariant),const SizedBox(height:11),
+        Row(children:[Icon(Icons.manage_search_rounded,color:c.primary,size:20),const SizedBox(width:8),Expanded(child:Text(countLabel!,style:TextStyle(color:c.onSurfaceVariant,fontSize:12,height:1.4)))])],
+    ]));
   }
 }
 
 class WorkspaceThemeSelector extends StatelessWidget {
   const WorkspaceThemeSelector({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = WorkspacePalette(context);
-    return WorkspaceSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.palette_outlined, color: p.accent, size: 22),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  'Apariencia de la aplicación',
-                  style: TextStyle(color: p.ink, fontSize: 18, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Text(
-            'Elige cómo quieres ver Tesorería en este dispositivo.',
-            style: TextStyle(color: p.muted, height: 1.5),
-          ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final largeText = MediaQuery.textScalerOf(context).scale(16) > 23;
-              final vertical = constraints.maxWidth < 350 || largeText;
-              const options = <_ThemeChoice>[
-                _ThemeChoice(ThemeMode.system, Icons.brightness_auto_outlined, 'Automático'),
-                _ThemeChoice(ThemeMode.light, Icons.light_mode_outlined, 'Claro'),
-                _ThemeChoice(ThemeMode.dark, Icons.dark_mode_outlined, 'Oscuro'),
-              ];
-              if (vertical) {
-                return Column(
-                  children: [
-                    for (var i = 0; i < options.length; i++) ...[
-                      if (i > 0) const SizedBox(height: 9),
-                      SizedBox(width: double.infinity, child: options[i]),
-                    ],
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < options.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    Expanded(child: options[i]),
-                  ],
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  @override Widget build(BuildContext context)=>AnimatedBuilder(animation:appearance,builder:(context,child)=>UxSection(
+    title:'A tu manera',description:'Elige el aspecto que te resulte más cómodo. Se guarda en este dispositivo.',icon:Icons.palette_outlined,
+    child:Column(children:[
+      _ThemeChoice(ThemeMode.system,Icons.brightness_auto_outlined,'Automático'),
+      SizedBox(height:9),_ThemeChoice(ThemeMode.light,Icons.light_mode_outlined,'Claro'),
+      SizedBox(height:9),_ThemeChoice(ThemeMode.dark,Icons.dark_mode_outlined,'Oscuro'),
+    ]),
+  ));
 }
-
 class _ThemeChoice extends StatelessWidget {
-  const _ThemeChoice(this.mode, this.icon, this.title);
-
+  const _ThemeChoice(this.mode,this.icon,this.title);
   final ThemeMode mode;
   final IconData icon;
   final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = WorkspacePalette(context);
-    final selected = appearance.mode == mode;
-    final textScaler = MediaQuery.textScalerOf(context);
-    final color = selected ? p.selectedInk : p.ink;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: 'Apariencia $title',
-      child: Material(
-        color: selected ? p.selectedBackground : p.canvas,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: () => appearance.setMode(mode),
-          borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: MediaQuery.of(context).disableAnimations
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: selected ? p.accent : p.line,
-                width: selected ? 1.7 : 1,
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: selected ? p.accent : p.muted, size: 24),
-                const SizedBox(height: 7),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: textScaler.scale(14) > 20 ? 12 : 13,
-                    color: color,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Icon(
-                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                  size: 17,
-                  color: selected ? p.accent : p.line,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  @override Widget build(BuildContext context){
+    final c=Theme.of(context).colorScheme;
+    final selected=appearance.mode==mode;
+    final detail=mode==ThemeMode.system?'Sigue la apariencia del teléfono':mode==ThemeMode.light?'Superficies claras y tinta azul':'Fondos oscuros y luz suave';
+    return Semantics(button:true,selected:selected,child:Material(color:selected?c.primaryContainer:c.surface,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(17),side:BorderSide(color:selected?c.primary:c.outlineVariant)),
+      clipBehavior:Clip.antiAlias,child:InkWell(onTap:()=>appearance.setMode(mode),child:Padding(padding:const EdgeInsets.all(14),child:Row(children:[
+        Icon(icon,color:selected?c.onPrimaryContainer:c.primary,size:24),const SizedBox(width:12),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:TextStyle(color:selected?c.onPrimaryContainer:c.onSurface,fontWeight:FontWeight.w800)),
+          const SizedBox(height:4),Text(detail,style:TextStyle(color:selected?c.onPrimaryContainer:c.onSurfaceVariant,fontSize:12,height:1.4))])),
+        const SizedBox(width:8),Icon(selected?Icons.check_circle_rounded:Icons.circle_outlined,color:selected?c.onPrimaryContainer:c.outline,size:21),
+      ])))));
   }
 }

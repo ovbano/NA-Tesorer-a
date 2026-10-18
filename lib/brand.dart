@@ -397,7 +397,8 @@ ThemeData groupTheme(Brightness brightness) {
 
 /// Selector de apariencia. Funciona en AppBar oscuro y en superficies normales.
 class ThemeButton extends StatelessWidget {
-  const ThemeButton({super.key});
+  const ThemeButton({super.key,this.foregroundColor});
+  final Color? foregroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +415,7 @@ class ThemeButton extends StatelessWidget {
     return PopupMenuButton<ThemeMode>(
       tooltip: 'Cambiar apariencia',
       initialValue: current,
-      icon: Icon(icon, color: Theme.of(context).appBarTheme.foregroundColor ?? Colors.white),
+      icon: Icon(icon, color: foregroundColor ?? Theme.of(context).appBarTheme.foregroundColor ?? Colors.white),
       iconSize: 23,
       splashRadius: 24,
       position: PopupMenuPosition.under,

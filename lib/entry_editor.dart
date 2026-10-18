@@ -1,4 +1,6 @@
 import 'experience.dart';
+import 'ux_components.dart';
+import 'treasury_header.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -34,7 +36,7 @@ class _EntryEditorState extends State<EntryEditor> {
   late String id,kind,category,fund;late int version;late DateTime date,due;String? memberId,receiptPath,error;XFile? photo;bool busy=false,dirty=false;
 
   bool get income => kind == 'income';
-  Color get movementColor => income ? const Color(0xFF177A4E) : const Color(0xFFC2383A);
+  Color get movementColor {final dark=Theme.of(context).brightness==Brightness.dark;return income?(dark?const Color(0xFF8EE7BC):const Color(0xFF177A4E)):(dark?const Color(0xFFFFA8AF):const Color(0xFFC2383A));}
   bool get correcting=>widget.entry?['status']=='posted';bool get rent=>category=='rent_contribution';
 
   @override void initState(){super.initState();final e=widget.entry??widget.initialPayment??{};id=e['id']??const Uuid().v4();version=e['version']??0;kind=e['kind']??'income';category=e['category']??'seventh';fund=e['fund']??'general';date=DateTime.parse(e['entry_date']??iso(today()));due=DateTime.parse(e['due_month']??period(widget.month));memberId=e['member_id'];receiptPath=e['receipt_path'];amount.text=e['amount_cents']==null?'':((e['amount_cents'] as num)/100).toStringAsFixed(2);description.text=e['description']??'';noReceipt.text=e['no_receipt_reason']??'';for(final c in [amount,description,noReceipt,reason]){c.addListener(()=>dirty=true);}}
@@ -190,98 +192,33 @@ class _EntryEditorState extends State<EntryEditor> {
     ]);
   }
 
-  Widget _summaryBanner() {
-    final positive = income;
-    final tint = positive ? const Color(0xFF126B49) : const Color(0xFF9F3038);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [brandNavy, Color.lerp(brandNavy, tint, .42)!, brandNavy],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: brandGold.withOpacity(.45)),
-      ),
-      child: Row(children: [
-        Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(.12),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Icon(positive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-              color: positive ? const Color(0xFFA7F0CA) : const Color(0xFFFFB7B9), size: 28),
-        ),
-        const SizedBox(width: 14),
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(positive ? 'ENTRADA DE DINERO' : 'SALIDA DE DINERO',
-              style: TextStyle(color: positive ? const Color(0xFFA7F0CA) : const Color(0xFFFFB7B9),
-                fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
-            const SizedBox(height: 5),
-            Text(positive ? 'Registrar un ingreso' : 'Registrar un egreso',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 3),
-            const Text('Control de fondos · Amigos Verdaderos',
-              style: TextStyle(color: Color(0xFFE0E8F6), fontSize: 12)),
-          ],
-        )),
-      ]),
-    );
-  }
+  Widget _summaryBanner()=>Padding(padding:const EdgeInsets.only(bottom:18),child:AdaptiveIntro(
+    title:correcting?'Corrige el movimiento':income?'Registra un ingreso':'Registra un egreso',
+    subtitle:'Selecciona el fondo, registra el importe y conserva el comprobante. Puedes dejarlo como borrador para completarlo después.',
+    icon:income?Icons.south_west_rounded:Icons.north_east_rounded,
+    eyebrow:correcting?'CORRECCIÓN CON HISTORIAL':widget.entry==null?'NUEVO MOVIMIENTO':'COMPLETAR BORRADOR'));
 
-  Widget _actions() {
-    final color = income ? const Color(0xFF147A4E) : const Color(0xFFBD393B);
-    final small = MediaQuery.sizeOf(context).width < 350 ||
-        MediaQuery.textScalerOf(context).scale(16) > 23;
-    final buttons = <Widget>[
-      if (!correcting)
-        OutlinedButton.icon(
-          onPressed: busy ? null : () => save(false),
-          icon: const Icon(Icons.edit_note_rounded),
-          label: const Text('Guardar borrador'),
-        ),
-      FilledButton.icon(
-        onPressed: busy ? null : () => save(true),
-        style: FilledButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          iconColor: Colors.white,
-          disabledBackgroundColor: color.withOpacity(.45),
-          disabledForegroundColor: Colors.white,
-          minimumSize: const Size(0, 54),
-        ),
-        icon: busy
-            ? const SizedBox(width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Icon(Icons.check_circle_outline_rounded),
-        label: Text(busy ? 'Guardando…' : correcting ? 'Guardar corrección' : 'Confirmar movimiento'),
-      ),
-    ];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: small
-            ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                for (final b in buttons) Padding(padding: const EdgeInsets.only(bottom: 8), child: b),
-              ])
-            : Wrap(alignment: WrapAlignment.center, spacing: 12, runSpacing: 10,
-                children: buttons),
-      ),
-    );
+  Widget _actions(){
+    final c=Theme.of(context).colorScheme;
+    final vertical=MediaQuery.sizeOf(context).width<420||MediaQuery.textScalerOf(context).scale(16)>23;
+    final confirm=FilledButton.icon(onPressed:busy?null:()=>save(true),
+      icon:Icon(busy?Icons.hourglass_top_rounded:Icons.check_circle_outline_rounded),
+      label:Text(busy?'Guardando…':correcting?'Guardar corrección':'Confirmar movimiento',textAlign:TextAlign.center));
+    final draft=OutlinedButton.icon(onPressed:busy?null:()=>save(false),icon:const Icon(Icons.edit_note_rounded),
+      label:const Text('Guardar como borrador',textAlign:TextAlign.center));
+    return Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:c.surface,border:Border(top:BorderSide(color:c.outlineVariant))),
+      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Text(correcting?'La corrección conserva el historial del movimiento.':'Confirmar afecta los saldos. El borrador permite completar los datos después.',
+          style:TextStyle(color:c.onSurfaceVariant,fontSize:12,height:1.4)),const SizedBox(height:12),
+        if(correcting)confirm else if(vertical)...[confirm,const SizedBox(height:9),draft]
+        else Row(children:[Expanded(child:draft),const SizedBox(width:12),Expanded(child:confirm)]),
+      ]));
   }
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).height < 520 ||
+        MediaQuery.textScalerOf(context).scale(16)>23 ||
         MediaQuery.viewInsetsOf(context).bottom > 0;
     final colors = Theme.of(context).colorScheme;
     final selected = [
@@ -302,44 +239,8 @@ class _EntryEditorState extends State<EntryEditor> {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: true,
-        appBar: AppBar(
-          flexibleSpace:DecoratedBox(decoration:const BoxDecoration(gradient:LinearGradient(colors:[brandNavy,Color(0xFF234C7C)])),
-            child:IgnorePointer(child:CustomPaint(painter:BrandPattern(color:brandGold.withOpacity(.10))))),
-          toolbarHeight: MediaQuery.textScalerOf(context).scale(17)>23?94:78,
-          backgroundColor: brandNavy,
-          foregroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            tooltip: 'Regresar',
-            onPressed: () async {
-              if (await leave() && mounted) {
-                setState(() => dirty = false);
-                if (context.mounted) Navigator.pop(context);
-              }
-            },
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          ),
-          title: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(correcting ? 'CORREGIR MOVIMIENTO'
-                  : widget.entry == null ? 'NUEVO MOVIMIENTO' : 'COMPLETAR BORRADOR',
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: .5)),
-              Text(income ? 'Ingreso' : 'Egreso',
-                style: TextStyle(
-                  color: income ? const Color(0xFFA7F0CA) : const Color(0xFFFFB7B9),
-                  fontSize: 12, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          actions: const [ThemeButton()],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(3),
-            child: Container(height: 3,
-                color: income ? const Color(0xFF22AC73) : const Color(0xFFE65A60)),
-          ),
-        ),
+        appBar:TreasuryHeader(title:correcting?'Corregir movimiento':widget.entry==null?'Nuevo movimiento':'Completar borrador',
+          overline:income?'INGRESO':'EGRESO',busy:busy),
         body: BrandedBackdrop(child:ResponsiveBody(
           child: AbsorbPointer(
             absorbing: busy,
@@ -468,6 +369,17 @@ class _EntryEditorState extends State<EntryEditor> {
                     children: [TextField(controller: reason, maxLines: 3,
                       decoration: const InputDecoration(labelText: 'Motivo de la corrección'))],
                   ),
+                ValueListenableBuilder<TextEditingValue>(valueListenable:amount,builder:(context,value,child){
+                  int? preview;try{preview=cents(value.text,optional:true);}catch(_){}
+                  return UxSection(title:'Revisa antes de guardar',icon:Icons.fact_check_outlined,child:FactsGrid(facts:[
+                    UxFact('Importe',preview==null?'Por completar':money(preview)),
+                    UxFact('Fondo',fund=='rent'?'Reservado para el local':'General del grupo'),
+                    UxFact('Fecha del movimiento',iso(date)),
+                    if(rent) UxFact('Mes de la cuota',monthLabel(due)),
+                    if(rent) UxFact('Compañero',selected?['name']?.toString()??'Por seleccionar'),
+                    UxFact('Comprobante',photo!=null||receiptPath!=null?'Adjunto':income?'Opcional':'Adjunta o explica su ausencia'),
+                  ]));
+                }),
                 if (error != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 16),

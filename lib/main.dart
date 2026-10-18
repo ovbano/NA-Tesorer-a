@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'brand.dart';
-import 'group_logo.dart';
 import 'supabase_config.dart';
 import 'treasury.dart';
 import 'workspace.dart';
 import 'experience.dart';
+import 'ux_components.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const TreasuryStartup());
@@ -157,146 +157,24 @@ class _AuthColors {
       Theme.of(context).colorScheme.onSurfaceVariant;
 }
 class _AuthHeader extends StatelessWidget implements PreferredSizeWidget {
-  const _AuthHeader({this.title = 'Tesorería del grupo'});
+  const _AuthHeader({this.title='Tesorería del grupo'});
   final String title;
-  @override
-  Size get preferredSize => const Size.fromHeight(74);
-  @override
-  Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < 350;
-    return AppBar(
-      automaticallyImplyLeading: false,
-      toolbarHeight: 74,
-      backgroundColor: Colors.transparent,
-      foregroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [_AuthColors.navy, Color(0xFF174384), Color(0xFF102D5D)],
-          ),
-          border: Border(bottom: BorderSide(color: _AuthColors.gold, width: 1.2)),
-        ),
-      ),
-      titleSpacing: narrow ? 14 : 20,
-      title: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12),
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: _AuthColors.gold.withOpacity(.60)),
-            ),
-            child: const Icon(Icons.account_balance_wallet_outlined,
-                color: _AuthColors.gold, size: 22),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('AMIGOS VERDADEROS',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 10,
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w800,
-                        color: _AuthColors.gold)),
-                const SizedBox(height: 3),
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white)),
-              ],
-            ),
-          ),
-        ],
-      ),
-      actions: const [
-        Padding(
-          padding: EdgeInsets.only(right: 7),
-          child: IconTheme(
-            data: IconThemeData(color: Colors.white),
-            child: ThemeButton(),
-          ),
-        ),
-      ],
-    );
+  @override Size get preferredSize=>const Size.fromHeight(78);
+  @override Widget build(BuildContext context){
+    final c=Theme.of(context).colorScheme;
+    return AppBar(automaticallyImplyLeading:false,toolbarHeight:78,backgroundColor:c.surface,
+      foregroundColor:c.onSurface,surfaceTintColor:Colors.transparent,titleSpacing:18,
+      title:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
+        Text('AMIGOS VERDADEROS',style:TextStyle(color:c.onSurfaceVariant,fontSize:10,letterSpacing:1,fontWeight:FontWeight.w700)),
+        const SizedBox(height:5),Text(title,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:c.onSurface,fontSize:17,fontWeight:FontWeight.w800)),
+      ]),actions:[Padding(padding:const EdgeInsets.only(right:10),child:ThemeButton(foregroundColor:c.primary))]);
   }
 }
 class _AuthHero extends StatelessWidget {
   const _AuthHero();
-  @override
-  Widget build(BuildContext context) => PanelMotion(child: Container(
-        padding: const EdgeInsets.fromLTRB(22, 28, 22, 25),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [_AuthColors.navy, Color(0xFF173D7A), Color(0xFF0E2A57)],
-          ),
-          borderRadius: BorderRadius.circular(29),
-          border: Border.all(color: _AuthColors.gold.withOpacity(.65)),
-          boxShadow: [
-            BoxShadow(
-              color: _AuthColors.navy.withOpacity(.14),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        foregroundDecoration: const ShapeDecoration(shape:RoundedRectangleBorder(borderRadius:BorderRadius.all(Radius.circular(29)),side:BorderSide(color:Color(0x33D9B96D)))),
-        child: Column(
-          children: [
-            // El logotipo permanece exactamente como está implementado.
-            const GroupLogo(
-              size: 120,
-              variant: GroupLogoVariant.featured,
-            ),
-            const SizedBox(height: 17),
-            const Text('NARCÓTICOS ANÓNIMOS',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.w800,
-                    color: _AuthColors.gold)),
-            const SizedBox(height: 8),
-            const Text('AMIGOS VERDADEROS',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    height: 1.15,
-                    color: Colors.white)),
-            const SizedBox(height: 10),
-            const Text('Unidad · Servicio · Recuperación',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 13, color: Color(0xFFE3EAF8), height: 1.45)),
-            const SizedBox(height: 19),
-            Container(height: 1, color: _AuthColors.gold.withOpacity(.34)),
-            const SizedBox(height: 13),
-            const Text('Un día a la vez, juntos.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: _AuthColors.gold,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12)),
-          ],
-        ),
-      ));
+  @override Widget build(BuildContext context)=>const AdaptiveIntro(
+    title:'Un servicio con cuentas claras',subtitle:'Tesorería de Amigos Verdaderos. Registra, consulta y conserva la información del grupo.',
+    icon:Icons.volunteer_activism_outlined,showLogo:true,eyebrow:'UNIDAD · SERVICIO · RECUPERACIÓN');
 }
 class _AuthPanel extends StatelessWidget {
   const _AuthPanel({required this.child});
@@ -333,22 +211,22 @@ class _PrimaryAuthButton extends StatelessWidget {
         child: FilledButton.icon(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: _AuthColors.navy,
-            foregroundColor: Colors.white,
-            iconColor: Colors.white,
-            disabledBackgroundColor: _AuthColors.navy.withOpacity(.60),
-            disabledForegroundColor: Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            iconColor: Theme.of(context).colorScheme.onPrimary,
+            disabledBackgroundColor: Theme.of(context).colorScheme.primary.withOpacity(.60),
+            disabledForegroundColor: Theme.of(context).colorScheme.onPrimary,
             minimumSize: const Size(0, 58),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
             textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           ),
           icon: busy
-              ? const SizedBox(
+              ? SizedBox(
                   height: 19,
                   width: 19,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 )
               : const Icon(Icons.login_rounded, size: 21),
@@ -418,6 +296,7 @@ class _LoginState extends State<LoginScreen> {
               child: AutofillGroup(
                 child: Form(
                   key: form,
+                  autovalidateMode:AutovalidateMode.onUserInteraction,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -448,7 +327,7 @@ class _LoginState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: Text('Acceso a Tesorería',
+                                  child: Text('Tu cuenta de servicio',
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w800,
