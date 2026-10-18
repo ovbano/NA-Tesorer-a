@@ -185,6 +185,12 @@ class TreasuryRepository {
     return _jsonResult(result, 'informe mensual');
   }
 
+  Future<Json> duesHistory(DateTime month) async {
+    final result = await client.rpc('treasury_dues_history',
+        params: {'p_month': period(month)});
+    return _jsonResult(result, 'historial de aportes');
+  }
+
   /// Paginación estable en lotes de 500, sin recortar registros del grupo.
   Future<List<Json>> all(String table, {String? status}) async {
     final data = <Json>[];
